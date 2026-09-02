@@ -51,6 +51,53 @@ cells = [
         ''',
     ),
     markdown(
+        "project-presentation",
+        r'''
+        ## Apresentação do projeto
+
+        Este projeto investiga, em escala didática e reprodutível, um **classificador híbrido quântico-clássico** aplicado ao conjunto Iris. O circuito variacional Cirq transforma quatro atributos botânicos em expectativas de Pauli-Z; uma regressão logística utiliza esses atributos quânticos para realizar a classificação binária entre *Iris setosa* e *Iris versicolor*.
+
+        | Dimensão | Definição do projeto |
+        |---|---|
+        | Pergunta | Um mapa de atributos produzido por um circuito variacional pode sustentar uma classificação reproduzível sem vazamento de dados? |
+        | Pipeline | Iris → normalização → VQC Cirq → quatro expectativas `⟨Zᵢ⟩` → regressão logística |
+        | Comparação | Pipeline híbrido × regressão logística clássica pré-especificada |
+        | Rigor | treino/validação/teste `60/20/20`, teste selado, convergência COBYLA, TDD, IC95% e hashes SHA-256 |
+        | Perfis | `smoke`, para verificação rápida; `full`, para execução experimental completa |
+        | Escopo | Simulação ideal de quatro qubits; não constitui demonstração de vantagem ou aceleração quântica |
+
+        **Contribuição didática:** apresentar todo o caminho entre preparação dos dados, construção do circuito, otimização, comparação justa, incerteza estatística e auditoria dos resultados em um único ambiente Google Colab.
+        ''',
+    ),
+    markdown(
+        "author-presentation",
+        r'''
+        ## Autor
+
+        <table>
+          <tr>
+            <td width="185" align="center">
+              <a href="https://github.com/MarceloClaro" target="_blank">
+                <img src="https://avatars.githubusercontent.com/u/58664974?v=4" width="150" alt="Perfil de Marcelo Claro Laranjeira no GitHub"/>
+              </a>
+            </td>
+            <td>
+              <h2>Prof. Marcelo Claro Laranjeira</h2>
+              <p><strong>Professor de Geografia e Pedagogo</strong></p>
+              <p><strong>GitHub:</strong> <a href="https://github.com/MarceloClaro" target="_blank">@MarceloClaro</a></p>
+              <p><strong>Localização:</strong> Crateús, Ceará, Brasil</p>
+              <p><strong>Projeto:</strong> <a href="https://bit.ly/geomaker" target="_blank">GeoMaker</a></p>
+              <p><strong>ORCID:</strong> <a href="https://orcid.org/0000-0001-8996-2887" target="_blank">0000-0001-8996-2887</a></p>
+              <p><strong>Instagram:</strong> <a href="https://www.instagram.com/marceloclaro.geomaker/" target="_blank">@marceloclaro.geomaker</a></p>
+              <p><a href="https://github.com/MarceloClaro?tab=followers" target="_blank"><strong>57 seguidores</strong></a> · <a href="https://github.com/MarceloClaro?tab=following" target="_blank"><strong>65 seguindo</strong></a></p>
+            </td>
+          </tr>
+        </table>
+
+        <small>Contagens do GitHub informadas em 2 de setembro de 2026; esses números podem mudar. Consulte o perfil para os valores atuais.</small>
+        ''',
+    ),
+    markdown(
         "instructions",
         r'''
         ## Como executar

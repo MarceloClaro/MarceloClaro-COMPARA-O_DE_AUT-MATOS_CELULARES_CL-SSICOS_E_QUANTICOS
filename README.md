@@ -31,15 +31,17 @@ A versão anterior repetia todo o programa em células cumulativas e criava um n
 - separa treino, validação e teste em `60/20/20`, sem escolher arquitetura no teste;
 - exige `success=True` do COBYLA: meta operacional no `smoke` e convergência da região de confiança no `full`;
 - executa a robustez somente sobre a validação, com sementes independentes por réplica, antes de abrir o teste;
+- permite **Executar tudo** novamente no mesmo kernel, limpando objetos transitórios e registrando a nova passagem;
+- torna a célula final idempotente: uma repetição isolada usa cache e não reabre o teste;
 - compara o pipeline híbrido com uma regressão logística clássica pré-especificada;
 - oferece os perfis `smoke` e `full`, testes TDD e um ZIP de membros fechados com hashes SHA-256.
 
-Antes da primeira execução corrigida, use **Ambiente de execução → Desconectar e excluir ambiente de execução**. Em seguida, abra o link acima, mantenha `PROFILE = "smoke"` e execute as células em ordem. Após a conclusão, reinicie o runtime, selecione `full` no formulário da célula de configuração e execute novamente desde o início. O reinício é necessário porque o gate científico impede a segunda abertura do teste na mesma sessão.
+Abra o link, selecione o runtime padrão **CPU / sem acelerador**, mantenha `PROFILE = "smoke"` e clique em **Ambiente de execução → Executar tudo**. Para a execução completa, selecione `full` e use **Executar tudo** novamente. Não é necessário reiniciar o kernel: o manifesto distingue a primeira confirmação das réplicas técnicas. Erros HTTP `502` do host `prod.colab.dev` são falhas da máquina virtual do Colab anteriores à execução do código; nesse caso, encerre a sessão indisponível e conecte uma nova sessão CPU.
 
-Para uma auditoria automática fora do Colab, o comando abaixo executa as 11 células de código em ordem e grava tempo, pico de memória, falha exata e o teste do bloqueio de reexecução:
+Para uma auditoria automática fora do Colab, o comando abaixo executa as 11 células duas vezes no mesmo kernel, mede tempo/memória e verifica o cache da confirmação:
 
 ```bash
-python scripts/validate_iris_notebook.py --profile smoke --allow-install --report iris_smoke_report.json
+python scripts/validate_iris_notebook.py --profile smoke --repeat-run-all --allow-install --report iris_smoke_report.json
 ```
 
 ## Correção conceitual central

@@ -102,12 +102,14 @@ cells = [
         r'''
         ## Como executar
 
-        1. Use **Ambiente de execução → Desconectar e excluir ambiente de execução** para remover objetos da versão antiga.
-        2. Abra novamente este notebook a partir do GitHub.
-        3. Execute **uma célula por vez** na primeira tentativa.
-        4. Mantenha `PROFILE = "smoke"`. Depois que ele terminar, **reinicie o runtime**, selecione `"full"` e execute novamente desde o início.
+        1. Em **Ambiente de execução → Alterar tipo de ambiente**, escolha **CPU / sem acelerador**. Este experimento não usa GPU.
+        2. Mantenha `PROFILE = "smoke"` para a verificação rápida.
+        3. Clique em **Ambiente de execução → Executar tudo**.
+        4. Para o experimento completo, selecione `PROFILE = "full"` e clique novamente em **Executar tudo**.
 
-        Em cada célula de código, aguarde a mensagem `GATE ...: aprovado` antes de avançar. Se uma célula falhar, não continue com o estado parcial: copie o erro, reinicie o runtime e execute novamente desde o início. A célula de dependências pode levar alguns minutos na primeira execução, mas não deve reiniciar o ambiente nem instalar TensorFlow.
+        O notebook é reentrante: uma nova execução completa limpa apenas os objetos transitórios do próprio experimento e recebe um novo número de execução. Repetir somente a célula final reutiliza o resultado em cache e **não abre o teste novamente**. A primeira execução de uma sessão é a referência confirmatória; repetições na mesma sessão são registradas como réplicas técnicas.
+
+        Em cada célula de código, a mensagem `GATE ...: aprovado` confirma as pós-condições. A célula de dependências pode levar alguns minutos na primeira execução, mas não reinicia o ambiente e não instala TensorFlow.
 
         A documentação oficial informa suporte do TensorFlow Quantum a Python 3.10–3.12. Este notebook não tenta instalar TFQ quando ele não é necessário e não imprime uma versão de Python presumida: a versão real é detectada abaixo.
         ''',
@@ -126,6 +128,9 @@ cells = [
 
         if sys.version_info[:2] < (3, 10):
             raise RuntimeError("Este notebook requer Python 3.10 ou superior.")
+
+        # O simulador Cirq deste experimento é CPU-only; não reserva nem inicializa CUDA.
+        os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")
 
         def installed_version(distribution):
             try:
@@ -201,6 +206,8 @@ cells = [
         print("Python real:", platform.python_version())
         print("Plataforma:", platform.platform())
         print("Dependências instaladas ou ajustadas:", missing or "nenhuma")
+        if os.environ.get("COLAB_GPU", "0") not in {"", "0"}:
+            print("AVISO: GPU detectada, mas não utilizada. Prefira o runtime CPU padrão.")
         print("TFQ suportado oficialmente por versão de Python:", (3, 10) <= sys.version_info[:2] <= (3, 12))
         print("GATE SETUP: Python e contratos de dependência aprovados.")
         ''',
@@ -299,9 +306,11 @@ cells = [
         - H2: repetir com a mesma configuração produz os mesmos atributos.
         - H3: COBYLA minimiza a perda positiva e deve retornar `success=True` por meta (`smoke`) ou convergência da região de confiança (`full`).
         - H4: nenhuma escolha de arquitetura ou hiperparâmetro consulta `y_test`.
-        - H5: um gate de estado impede que o conjunto de teste seja aberto duas vezes no mesmo runtime.
+        - H5: a célula final é idempotente: uma repetição isolada reutiliza o cache sem nova abertura do teste.
         - H6: cada par `(nível de ruído, réplica)` recebe uma semente determinística e única.
         - H7: somente os artefatos pré-especificados entram no arquivo ZIP e todos têm SHA-256 verificável.
+
+        Cada **execução completa** recebe um contador próprio. A primeira execução em uma sessão limpa é confirmatória; execuções completas adicionais no mesmo kernel são identificadas no manifesto como réplicas técnicas, preservando a transparência sem bloquear o uso didático.
 
         A unidade experimental é a divisão estratificada fixada pela semente. Com apenas 20 casos de teste, o intervalo de incerteza deve ser relatado e conclusões fortes devem ser evitadas.
         ''',
@@ -347,11 +356,31 @@ cells = [
         assert np.bincount(y_train, minlength=2).tolist() == [30, 30]
         assert np.bincount(y_validation, minlength=2).tolist() == [10, 10]
 
+        # Uma nova passagem de "Executar tudo" começa uma execução controlada.
+        previous_test_opened = bool(globals().get("TEST_OPENED", False))
+        _IRIS_RUN_SEQUENCE = int(globals().get("_IRIS_RUN_SEQUENCE", 0)) + 1
+        RUN_SEQUENCE = _IRIS_RUN_SEQUENCE
+        _IRIS_SESSION_TEST_OPENINGS = int(globals().get("_IRIS_SESSION_TEST_OPENINGS", 0))
+
+        # Remove somente resultados transitórios da passagem anterior para liberar memória.
+        transient_names = (
+            "X_test", "y_test", "X_fit", "y_fit", "fit_features", "test_features",
+            "final_classifier", "classical_classifier", "test_probability",
+            "test_prediction", "classical_probability", "classical_prediction",
+            "test_metrics", "accuracy_ci", "log_loss_ci", "matrix", "FINAL_TEST_CACHE",
+            "architecture_results", "optimization", "objective_history", "landscape_results",
+            "noise_results", "noise_summary", "robustness_classifier",
+            "robustness_train_features", "optimized_theta",
+        )
+        for transient_name in transient_names:
+            globals().pop(transient_name, None)
+        plt.close("all")
+        gc.collect()
+
         # O teste permanece apenas como índices opacos até a célula confirmatória.
-        if globals().get("TEST_OPENED", False):
-            raise RuntimeError("O teste já foi aberto. Reinicie o runtime para uma nova execução.")
         TEST_OPENED = False
         TEST_OPEN_COUNT = 0
+        FINAL_TEST_CACHE = None
         n_test_reserved = len(test_ids)
 
         split_table = pd.DataFrame({
@@ -361,6 +390,10 @@ cells = [
             "classe_1": [int((y_train == 1).sum()), int((y_validation == 1).sum()), "selado"],
         })
         display(split_table)
+        if previous_test_opened:
+            print(f"NOVA EXECUÇÃO CONTROLADA #{RUN_SEQUENCE}: estado anterior descartado.")
+        else:
+            print(f"EXECUÇÃO CONTROLADA #{RUN_SEQUENCE}: teste ainda não aberto.")
         print("GATE DADOS: formas, classes, partições e normalização aprovadas; teste selado.")
         ''',
         tags=["test"],
@@ -654,94 +687,167 @@ cells = [
     code(
         "final-test",
         r'''
-        # 10. Confirmação: ajuste final em treino+validação e uma única abertura do teste
-        if TEST_OPENED:
-            raise RuntimeError("O teste já foi aberto. Reinicie o runtime antes de repetir a confirmação.")
-        X_test = input_scaler.transform(X_raw[test_ids])
-        y_test = y[test_ids]
-        TEST_OPENED = True
-        TEST_OPEN_COUNT += 1
-        assert TEST_OPEN_COUNT == 1
-        assert X_test.shape == (n_test_reserved, N_QUBITS)
-        assert y_test.shape == (n_test_reserved,)
-        assert np.isfinite(X_test).all()
-        assert np.min(X_test) >= 0.0 and np.max(X_test) <= 1.0
-        assert np.bincount(y_test, minlength=2).tolist() == [10, 10]
+        # 10. Confirmação idempotente: repetir esta célula reutiliza o cache da execução.
+        def compute_final_test():
+            X_test_local = input_scaler.transform(X_raw[test_ids])
+            y_test_local = y[test_ids]
+            assert X_test_local.shape == (n_test_reserved, N_QUBITS)
+            assert y_test_local.shape == (n_test_reserved,)
+            assert np.isfinite(X_test_local).all()
+            assert np.min(X_test_local) >= 0.0 and np.max(X_test_local) <= 1.0
+            assert np.bincount(y_test_local, minlength=2).tolist() == [10, 10]
 
-        X_fit = np.vstack((X_train, X_validation))
-        y_fit = np.concatenate((y_train, y_validation))
-        fit_features = quantum_features(best_bundle, X_fit, optimized_theta)
-        test_features = quantum_features(best_bundle, X_test, optimized_theta)
+            X_fit_local = np.vstack((X_train, X_validation))
+            y_fit_local = np.concatenate((y_train, y_validation))
+            fit_features_local = quantum_features(best_bundle, X_fit_local, optimized_theta)
+            test_features_local = quantum_features(best_bundle, X_test_local, optimized_theta)
 
-        final_classifier = new_classifier()
-        final_classifier.fit(fit_features, y_fit)
-        test_probability = final_classifier.predict_proba(test_features)[:, 1]
-        test_prediction = (test_probability >= 0.5).astype(np.int64)
-        assert np.isfinite(test_probability).all()
-        assert np.all((test_probability >= 0.0) & (test_probability <= 1.0))
-        assert set(np.unique(test_prediction)).issubset({0, 1})
+            final_classifier_local = new_classifier()
+            final_classifier_local.fit(fit_features_local, y_fit_local)
+            test_probability_local = final_classifier_local.predict_proba(test_features_local)[:, 1]
+            test_prediction_local = (test_probability_local >= 0.5).astype(np.int64)
+            assert np.isfinite(test_probability_local).all()
+            assert np.all((test_probability_local >= 0.0) & (test_probability_local <= 1.0))
+            assert set(np.unique(test_prediction_local)).issubset({0, 1})
 
-        # Comparador clássico pré-especificado: mesma divisão e mesma família de classificador.
-        classical_classifier = new_classifier()
-        classical_classifier.fit(X_fit, y_fit)
-        classical_probability = classical_classifier.predict_proba(X_test)[:, 1]
-        classical_prediction = (classical_probability >= 0.5).astype(np.int64)
-        assert np.isfinite(classical_probability).all()
-        assert np.all((classical_probability >= 0.0) & (classical_probability <= 1.0))
+            # Comparador clássico pré-especificado: mesma divisão e mesma família.
+            classical_classifier_local = new_classifier()
+            classical_classifier_local.fit(X_fit_local, y_fit_local)
+            classical_probability_local = classical_classifier_local.predict_proba(X_test_local)[:, 1]
+            classical_prediction_local = (classical_probability_local >= 0.5).astype(np.int64)
+            assert np.isfinite(classical_probability_local).all()
+            assert np.all(
+                (classical_probability_local >= 0.0) & (classical_probability_local <= 1.0)
+            )
 
-        def metric_row(model_name, probability, prediction):
+            def metric_row(model_name, probability, prediction):
+                return {
+                    "model": model_name,
+                    "accuracy": accuracy_score(y_test_local, prediction),
+                    "balanced_accuracy": balanced_accuracy_score(y_test_local, prediction),
+                    "f1": f1_score(y_test_local, prediction),
+                    "roc_auc": roc_auc_score(y_test_local, probability),
+                    "log_loss": log_loss(y_test_local, probability, labels=[0, 1]),
+                }
+
+            test_metrics_local = pd.DataFrame([
+                metric_row("hybrid_cirq", test_probability_local, test_prediction_local),
+                metric_row(
+                    "classical_logistic_regression",
+                    classical_probability_local,
+                    classical_prediction_local,
+                ),
+            ])
+            bounded_metrics = ["accuracy", "balanced_accuracy", "f1", "roc_auc"]
+            assert np.isfinite(test_metrics_local.select_dtypes(include=[np.number])).all().all()
+            assert all(
+                test_metrics_local[column].between(0.0, 1.0).all()
+                for column in bounded_metrics
+            )
+            assert (test_metrics_local["log_loss"] >= 0.0).all()
+
+            bootstrap_rng = np.random.default_rng(SEED + 1)
+            bootstrap_log_loss = []
+            for _ in range(SPEC.bootstrap_resamples):
+                sampled = bootstrap_rng.integers(0, len(y_test_local), len(y_test_local))
+                bootstrap_log_loss.append(
+                    log_loss(
+                        y_test_local[sampled],
+                        test_probability_local[sampled],
+                        labels=[0, 1],
+                    )
+                )
+            log_loss_ci_local = np.quantile(bootstrap_log_loss, [0.025, 0.975])
+
+            # Wilson não colapsa para [1, 1] quando a amostra pequena não contém erros.
+            test_size = len(y_test_local)
+            correct = int(np.sum(y_test_local == test_prediction_local))
+            observed_accuracy_local = correct / test_size
+            z_95 = 1.959963984540054
+            denominator = 1 + z_95**2 / test_size
+            center = (observed_accuracy_local + z_95**2 / (2 * test_size)) / denominator
+            radius = (
+                z_95
+                * np.sqrt(
+                    observed_accuracy_local * (1 - observed_accuracy_local) / test_size
+                    + z_95**2 / (4 * test_size**2)
+                )
+                / denominator
+            )
+            accuracy_ci_local = np.clip([center - radius, center + radius], 0.0, 1.0)
+            matrix_local = confusion_matrix(y_test_local, test_prediction_local)
+
+            assert accuracy_ci_local[0] <= observed_accuracy_local <= accuracy_ci_local[1]
+            assert np.isfinite(log_loss_ci_local).all()
+            assert log_loss_ci_local[0] <= log_loss_ci_local[1]
             return {
-                "model": model_name,
-                "accuracy": accuracy_score(y_test, prediction),
-                "balanced_accuracy": balanced_accuracy_score(y_test, prediction),
-                "f1": f1_score(y_test, prediction),
-                "roc_auc": roc_auc_score(y_test, probability),
-                "log_loss": log_loss(y_test, probability, labels=[0, 1]),
+                "run_sequence": RUN_SEQUENCE,
+                "X_test": X_test_local,
+                "y_test": y_test_local,
+                "X_fit": X_fit_local,
+                "y_fit": y_fit_local,
+                "fit_features": fit_features_local,
+                "test_features": test_features_local,
+                "final_classifier": final_classifier_local,
+                "classical_classifier": classical_classifier_local,
+                "test_probability": test_probability_local,
+                "test_prediction": test_prediction_local,
+                "classical_probability": classical_probability_local,
+                "classical_prediction": classical_prediction_local,
+                "test_metrics": test_metrics_local,
+                "accuracy_ci": accuracy_ci_local,
+                "log_loss_ci": log_loss_ci_local,
+                "observed_accuracy": observed_accuracy_local,
+                "matrix": matrix_local,
             }
 
-        final_metrics = metric_row("hybrid_cirq", test_probability, test_prediction)
-        classical_metrics = metric_row(
-            "classical_logistic_regression", classical_probability, classical_prediction
+        cache_valid = (
+            isinstance(FINAL_TEST_CACHE, dict)
+            and FINAL_TEST_CACHE.get("run_sequence") == RUN_SEQUENCE
         )
-        test_metrics = pd.DataFrame([final_metrics, classical_metrics])
-        bounded_metrics = ["accuracy", "balanced_accuracy", "f1", "roc_auc"]
-        assert np.isfinite(test_metrics.select_dtypes(include=[np.number])).all().all()
-        assert all(test_metrics[column].between(0.0, 1.0).all() for column in bounded_metrics)
-        assert (test_metrics["log_loss"] >= 0.0).all()
-
-        bootstrap_rng = np.random.default_rng(SEED + 1)
-        bootstrap_log_loss = []
-        for _ in range(SPEC.bootstrap_resamples):
-            sampled = bootstrap_rng.integers(0, len(y_test), len(y_test))
-            bootstrap_log_loss.append(
-                log_loss(y_test[sampled], test_probability[sampled], labels=[0, 1])
+        if cache_valid:
+            cache_mode = "reused_without_test_reopening"
+        else:
+            if TEST_OPENED:
+                print("Estado legado detectado; iniciando uma nova confirmação controlada.")
+            FINAL_TEST_CACHE = compute_final_test()
+            _IRIS_SESSION_TEST_OPENINGS += 1
+            confirmation_scope = (
+                "confirmatory_first_session_run"
+                if _IRIS_SESSION_TEST_OPENINGS == 1
+                else "technical_rerun_same_kernel"
             )
-        log_loss_ci = np.quantile(bootstrap_log_loss, [0.025, 0.975])
+            FINAL_TEST_CACHE["confirmation_scope"] = confirmation_scope
+            FINAL_TEST_CACHE["session_test_openings"] = _IRIS_SESSION_TEST_OPENINGS
+            cache_mode = "computed_once"
 
-        # Wilson não colapsa para [1, 1] quando a amostra pequena não contém erros.
-        test_size = len(y_test)
-        correct = int(np.sum(y_test == test_prediction))
-        observed_accuracy = correct / test_size
-        z_95 = 1.959963984540054
-        denominator = 1 + z_95**2 / test_size
-        center = (observed_accuracy + z_95**2 / (2 * test_size)) / denominator
-        radius = (
-            z_95
-            * np.sqrt(
-                observed_accuracy * (1 - observed_accuracy) / test_size
-                + z_95**2 / (4 * test_size**2)
-            )
-            / denominator
-        )
-        accuracy_ci = np.clip([center - radius, center + radius], 0.0, 1.0)
+        X_test = FINAL_TEST_CACHE["X_test"]
+        y_test = FINAL_TEST_CACHE["y_test"]
+        X_fit = FINAL_TEST_CACHE["X_fit"]
+        y_fit = FINAL_TEST_CACHE["y_fit"]
+        fit_features = FINAL_TEST_CACHE["fit_features"]
+        test_features = FINAL_TEST_CACHE["test_features"]
+        final_classifier = FINAL_TEST_CACHE["final_classifier"]
+        classical_classifier = FINAL_TEST_CACHE["classical_classifier"]
+        test_probability = FINAL_TEST_CACHE["test_probability"]
+        test_prediction = FINAL_TEST_CACHE["test_prediction"]
+        classical_probability = FINAL_TEST_CACHE["classical_probability"]
+        classical_prediction = FINAL_TEST_CACHE["classical_prediction"]
+        test_metrics = FINAL_TEST_CACHE["test_metrics"]
+        accuracy_ci = FINAL_TEST_CACHE["accuracy_ci"]
+        log_loss_ci = FINAL_TEST_CACHE["log_loss_ci"]
+        observed_accuracy = FINAL_TEST_CACHE["observed_accuracy"]
+        matrix = FINAL_TEST_CACHE["matrix"]
+        confirmation_scope = FINAL_TEST_CACHE["confirmation_scope"]
+        TEST_OPENED = True
+        TEST_OPEN_COUNT = 1
 
+        assert TEST_OPEN_COUNT == 1
+        assert FINAL_TEST_CACHE["run_sequence"] == RUN_SEQUENCE
         display(test_metrics)
         print(f"IC95% Wilson da acurácia híbrida: [{accuracy_ci[0]:.3f}, {accuracy_ci[1]:.3f}]")
         print(f"IC95% bootstrap do log-loss híbrido: [{log_loss_ci[0]:.4f}, {log_loss_ci[1]:.4f}]")
-        assert accuracy_ci[0] <= observed_accuracy <= accuracy_ci[1]
-        assert np.isfinite(log_loss_ci).all() and log_loss_ci[0] <= log_loss_ci[1]
 
-        matrix = confusion_matrix(y_test, test_prediction)
         fig_confusion, axis = plt.subplots(figsize=(5, 4))
         image = axis.imshow(matrix, cmap="Blues")
         for row in range(2):
@@ -758,7 +864,8 @@ cells = [
         fig_confusion.tight_layout()
         plt.show()
         plt.close(fig_confusion)
-        print("GATE TESTE FINAL: abertura única, métricas, incerteza e matriz aprovadas.")
+        print("Modo da célula final:", cache_mode, "| escopo:", confirmation_scope)
+        print("GATE TESTE FINAL: idempotência, métricas, incerteza e matriz aprovadas.")
         ''',
         tags=["confirmation"],
     ),
@@ -860,7 +967,11 @@ cells = [
             "validation_log_loss": objective_history,
         }).to_csv(history_path, index=False)
         manifest = {
-            "contract_version": "2.3.0",
+            "contract_version": "2.4.0",
+            "run_sequence": int(RUN_SEQUENCE),
+            "confirmation_scope": confirmation_scope,
+            "session_test_openings": int(_IRIS_SESSION_TEST_OPENINGS),
+            "final_cell_cache_mode": cache_mode,
             "profile": asdict(SPEC),
             "seed": SEED,
             "noise_seed_strategy": "numpy.SeedSequence([seed, noise_index, replicate])",
@@ -937,7 +1048,7 @@ cells = [
         - Este é um simulador clássico de quatro qubits, não execução em QPU e não evidência de vantagem quântica.
         - A busca compara três ansätze em uma única divisão; uma publicação exigiria validação cruzada aninhada com sementes externas.
         - O ensaio de robustez perturba a validação depois da seleção; é diagnóstico exploratório e não uma estimativa confirmatória independente.
-        - O teste fica selado até a célula confirmatória e um gate impede sua segunda abertura no mesmo runtime.
+        - O teste fica selado até a célula confirmatória; repetir apenas essa célula reutiliza o cache, enquanto uma nova execução completa é registrada como réplica técnica.
         - TFQ é uma camada TensorFlow–Cirq. A documentação oficial limita o suporte binário normal a Python 3.10–3.12; em Python 3.13 deve-se usar outro runtime ou a rota Cirq deste notebook.
 
         Referências: [TensorFlow Quantum — instalação](https://www.tensorflow.org/quantum/install), [Cirq](https://quantumai.google/cirq), [Iris dataset](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_iris.html).

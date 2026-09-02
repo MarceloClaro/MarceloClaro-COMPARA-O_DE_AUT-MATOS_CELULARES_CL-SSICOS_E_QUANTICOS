@@ -2,7 +2,7 @@
 
 **Data:** 2 de setembro de 2026  
 **Escopo:** notebook Cirq + regressão logística para Google Colab  
-**SHA-256 do notebook:** `1c86caafb5d50c51b5cc44140e1366421795c7f4c5f958af2065bd5457d6b1e3`
+**SHA-256 do notebook:** `403443bed05b9e85b513e7f909185ecf53002d2a34c5f229f07c588420bb9df0`
 
 ## Decisão de validação
 
@@ -11,7 +11,21 @@ O notebook está **aprovado para execução didática e experimental no Colab**.
 1. COBYLA somente libera a continuação quando `optimization.success` é verdadeiro;
 2. o teste permanece selado até a confirmação e não é reutilizado no ensaio de robustez.
 
+A revisão célula a célula também corrigiu quatro falhas operacionais adicionais: atualização do `user-site` após instalação no mesmo processo, chamada incompatível da API de medição do Cirq 1.6.1, colisões entre sementes de ruído e inclusão de resíduos de execuções antigas no ZIP.
+
 Essa aprovação não representa evidência de vantagem quântica nem validação confirmatória para publicação. O conjunto binário contém apenas 100 observações e a confirmação usa 20 casos.
+
+## Diagnóstico do registro de execução fornecido
+
+| Evidência observada na versão antiga | Defeito | Solução validada |
+|---|---|---|
+| TensorFlow 2.20 carregado embora TFQ estivesse indisponível | consumo de memória sem contribuição ao circuito Cirq | rota leve Cirq + regressão logística, sem importar TensorFlow/Keras |
+| nomes `functional_258` e `dropout_147` | criação cumulativa de muitos modelos Keras no mesmo runtime | classificador pequeno e descartável; nenhum grafo Keras no objetivo COBYLA |
+| atributos quânticos com forma `(70, 1)` para quatro qubits | observável reduzido incorretamente a um escalar | quatro expectativas `⟨Zᵢ⟩`, forma `(n, 4)`, testadas nos estados `|0⟩` e `|1⟩` |
+| divisão apenas `70/30` e escolha da arquitetura pela acurácia de teste | vazamento confirmatório | partições estratificadas `60/20/20`; arquitetura e parâmetros usam somente validação |
+| saída interrompida imediatamente após “Otimizando ... COBYLA” | forte indício de encerramento do kernel por pressão acumulada de memória, não exceção Python registrada | objetivo sem modelos Keras, limite explícito de avaliações e pico medido de 206,93 MiB |
+
+O registro não contém uma mensagem do sistema operacional, portanto a causa exata da desconexão antiga não pode ser provada apenas pelo texto. A numeração cumulativa dos objetos Keras e o ponto da interrupção, porém, são consistentes com esgotamento do runtime; a reprodução corrigida elimina esse mecanismo e conclui os dois perfis.
 
 ## Rastreabilidade das correções
 
@@ -23,9 +37,31 @@ Essa aprovação não representa evidência de vantagem quântica nem validaçã
 | IRIS-BLD-01 | `X_test` e `y_test` só são materializados em `final-test` | análise AST das células | Aprovado |
 | IRIS-BLD-02 | flag `TEST_OPENED` | segunda execução de `final-test` deve falhar | Aprovado |
 | IRIS-RBS-01 | perturbação somente de `X_validation` | ausência de `X_test` na célula de robustez | Aprovado |
+| IRIS-RBS-02 | `SeedSequence([seed, nível, réplica])` | unicidade das sementes em todas as réplicas | Aprovado |
 | IRIS-REP-01 | gerador determinístico | dois builds produzem o mesmo SHA-256 | Aprovado |
 | IRIS-INT-01 | hashes dos CSVs e manifesto | recálculo e comparação | Aprovado |
+| IRIS-INT-02 | lista fechada de membros do ZIP | arquivo residual não pode entrar no pacote | Aprovado |
 | IRIS-DOC-01 | apresentação do projeto e identificação do autor | teste dos conteúdos, links e ORCID | Aprovado |
+
+## Auditoria de cada célula de código
+
+Execução `full` limpa, na ordem efetiva do notebook:
+
+| Nº | ID da célula | Contrato principal | Tempo (s) | Pico RSS (MiB) | Resultado |
+|---:|---|---|---:|---:|---|
+| 1 | `setup` | Python, versões e pós-instalação importável | 0,045 | 15,8 | Aprovado |
+| 2 | `imports-config` | imports, semente e perfil imutável | 1,548 | 195,2 | Aprovado |
+| 3 | `data` | forma, balanceamento, disjunção e teste selado | 0,004 | 195,8 | Aprovado |
+| 4 | `circuits` | 4 qubits, 8 parâmetros, 3 topologias sem medição | 0,030 | 197,7 | Aprovado |
+| 5 | `features-tests` | observáveis físicos, erros de forma e determinismo | 0,031 | 198,2 | Aprovado |
+| 6 | `architecture-selection` | três ansätze e seleção só na validação | 0,849 | 199,1 | Aprovado |
+| 7 | `optimization` | histórico finito, limites e `success=True` | 16,708 | 199,9 | Aprovado |
+| 8 | `landscape` | grade completa e perdas finitas | 2,516 | 202,2 | Aprovado |
+| 9 | `robustness` | validação apenas e sementes únicas | 1,968 | 204,6 | Aprovado |
+| 10 | `final-test` | abertura única, métricas e IC95% | 3,500 | 206,1 | Aprovado |
+| 11 | `artifacts` | lista fechada, hashes e ZIP exato | 0,008 | 206,7 | Aprovado |
+
+As sete células Markdown também foram verificadas quanto a ordem, apresentação, instruções, protocolo, equações e limites. Todas as 18 células têm identificadores únicos; as 11 células executáveis estão sem outputs persistidos e encerram com um gate explícito.
 
 ## Ambiente e resultados observados
 
@@ -35,10 +71,12 @@ Essa aprovação não representa evidência de vantagem quântica nem validaçã
 | Cirq | 1.6.1 |
 | SciPy | 1.17.0 |
 | scikit-learn | 1.8.0 |
-| Testes estáticos | 9/9 aprovados |
-| Tempo `smoke` | 7,6 s |
-| Tempo `full` | 25,7 s |
-| Pico de memória `full` | 206,6 MiB |
+| Testes estáticos | 14/14 aprovados |
+| Células executáveis `smoke` | 11/11 aprovadas |
+| Células executáveis `full` | 11/11 aprovadas |
+| Tempo `smoke` | 7,34 s |
+| Tempo `full` | 27,21 s |
+| Pico de memória `full` | 206,93 MiB |
 | COBYLA `full` | `success=True`, 94 avaliações |
 | Log-loss de validação inicial → final | 0,04920 → 0,02943 |
 | Acurácia híbrida no teste | 1,000 |
@@ -64,6 +102,7 @@ Para validar o contrato estrutural do repositório:
 ```bash
 python scripts/build_iris_colab.py
 python -m unittest -v tests/test_iris_notebook.py
+python scripts/validate_iris_notebook.py --profile smoke --allow-install --report iris_smoke_report.json
 ```
 
 ## Limites científicos remanescentes

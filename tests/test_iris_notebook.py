@@ -44,6 +44,15 @@ class IrisNotebookContractTests(unittest.TestCase):
             if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
         }
 
+    @classmethod
+    def stored_names(cls, cell: dict) -> set[str]:
+        tree = ast.parse(cls.text(cell))
+        return {
+            node.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
+        }
+
     def test_01_notebook_structure_order_and_clean_state(self) -> None:
         self.assertEqual(self.notebook["nbformat"], 4)
         identifiers = [cell["id"] for cell in self.cells]
@@ -61,7 +70,7 @@ class IrisNotebookContractTests(unittest.TestCase):
                 with self.subTest(cell=cell["id"]):
                     self.assertRegex(self.text(cell), r"GATE [A-ZÁÉÍÓÚÇ ]+")
 
-    def test_03_project_author_and_recovery_instructions_are_preserved(self) -> None:
+    def test_03_project_author_and_one_click_instructions_are_preserved(self) -> None:
         project = self.text(self.by_id["project-presentation"])
         author = self.text(self.by_id["author-presentation"])
         instructions = self.text(self.by_id["instructions"])
@@ -73,7 +82,9 @@ class IrisNotebookContractTests(unittest.TestCase):
         self.assertIn("https://bit.ly/geomaker", author)
         self.assertIn("0000-0001-8996-2887", author)
         self.assertIn("@marceloclaro.geomaker", author)
-        self.assertIn("reinicie o runtime", instructions)
+        self.assertIn("Executar tudo", instructions)
+        self.assertIn("CPU / sem acelerador", instructions)
+        self.assertIn("reutiliza o resultado em cache", instructions)
         self.assertIn("GATE ...: aprovado", instructions)
 
     def test_04_setup_checks_every_dependency_contract(self) -> None:
@@ -88,6 +99,7 @@ class IrisNotebookContractTests(unittest.TestCase):
         self.assertIn("subprocess.CalledProcessError", setup)
         self.assertIn("site.addsitedir(site.getusersitepackages())", setup)
         self.assertIn("Pós-condição de dependências falhou", setup)
+        self.assertIn('os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")', setup)
         self.assertNotIn('"tensorflow"', setup.lower())
 
     def test_05_data_contract_has_fixed_balanced_disjoint_splits(self) -> None:
@@ -98,6 +110,9 @@ class IrisNotebookContractTests(unittest.TestCase):
         self.assertIn("input_scaler.fit_transform(X_raw[train_ids])", data)
         self.assertIn("TEST_OPENED = False", data)
         self.assertIn("TEST_OPEN_COUNT = 0", data)
+        self.assertIn('_IRIS_RUN_SEQUENCE = int(globals().get("_IRIS_RUN_SEQUENCE", 0)) + 1', data)
+        self.assertIn('globals().pop(transient_name, None)', data)
+        self.assertNotIn("O teste já foi aberto", data)
         self.assertNotIn("X_test =", data)
         self.assertNotIn("y_test =", data)
 
@@ -145,18 +160,21 @@ class IrisNotebookContractTests(unittest.TestCase):
         self.assertIn('noise_results["noise_seed"].is_unique', robustness)
 
     def test_10_test_data_are_loaded_only_by_confirmation_cell(self) -> None:
-        consumers = {
+        materializers = {
             cell["id"]
             for cell in self.cells
             if cell["cell_type"] == "code"
-            and {"X_test", "y_test"}.intersection(self.loaded_names(cell))
+            and {"X_test", "y_test"}.intersection(self.stored_names(cell))
         }
-        self.assertEqual(consumers, {"final-test"})
+        self.assertEqual(materializers, {"final-test"})
         confirmation = self.text(self.by_id["final-test"])
+        self.assertIn("def compute_final_test()", confirmation)
+        self.assertIn("cache_valid", confirmation)
         self.assertIn("if TEST_OPENED", confirmation)
         self.assertIn("TEST_OPENED = True", confirmation)
-        self.assertIn("TEST_OPEN_COUNT += 1", confirmation)
-        self.assertIn("TEST_OPEN_COUNT == 1", confirmation)
+        self.assertIn('cache_mode = "reused_without_test_reopening"', confirmation)
+        self.assertIn("_IRIS_SESSION_TEST_OPENINGS += 1", confirmation)
+        self.assertIn("TEST_OPEN_COUNT = 1", confirmation)
 
     def test_11_artifact_archive_uses_a_closed_member_list(self) -> None:
         artifacts = self.text(self.by_id["artifacts"])
@@ -185,15 +203,25 @@ class IrisNotebookContractTests(unittest.TestCase):
             )
         )
 
-    def test_13_validator_reports_cells_and_reexecution_guard(self) -> None:
+    def test_13_validator_reports_cells_idempotence_and_reentrancy(self) -> None:
         validator_source = VALIDATOR.read_text(encoding="utf-8")
         ast.parse(validator_source)
         self.assertIn('"failed_cell"', validator_source)
         self.assertIn('"peak_rss_mib"', validator_source)
-        self.assertIn('report["test_reexecution_guard"] = "passed"', validator_source)
+        self.assertIn('report["final_cell_idempotence"]', validator_source)
+        self.assertIn('namespace["cache_mode"] == "reused_without_test_reopening"', validator_source)
+        self.assertIn("--repeat-run-all", validator_source)
         self.assertIn("--allow-install", validator_source)
 
-    def test_14_generator_is_deterministic(self) -> None:
+    def test_14_manifest_records_run_scope_and_cache_mode(self) -> None:
+        artifacts = self.text(self.by_id["artifacts"])
+        self.assertIn('"contract_version": "2.4.0"', artifacts)
+        self.assertIn('"run_sequence": int(RUN_SEQUENCE)', artifacts)
+        self.assertIn('"confirmation_scope": confirmation_scope', artifacts)
+        self.assertIn('"session_test_openings": int(_IRIS_SESSION_TEST_OPENINGS)', artifacts)
+        self.assertIn('"final_cell_cache_mode": cache_mode', artifacts)
+
+    def test_15_generator_is_deterministic(self) -> None:
         subprocess.run([sys.executable, str(BUILDER)], cwd=ROOT, check=True, capture_output=True)
         first = hashlib.sha256(NOTEBOOK.read_bytes()).hexdigest()
         subprocess.run([sys.executable, str(BUILDER)], cwd=ROOT, check=True, capture_output=True)

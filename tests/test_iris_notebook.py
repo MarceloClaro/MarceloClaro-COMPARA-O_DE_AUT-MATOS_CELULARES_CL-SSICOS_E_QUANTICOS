@@ -47,6 +47,18 @@ class IrisNotebookContractTests(unittest.TestCase):
                 self.assertIsNone(cell["execution_count"])
                 self.assertEqual(cell["outputs"], [])
 
+    def test_project_and_author_presentations_are_preserved(self) -> None:
+        project = self.code(self.by_id["project-presentation"])
+        author = self.code(self.by_id["author-presentation"])
+        self.assertIn("Apresentação do projeto", project)
+        self.assertIn("VQC Cirq", project)
+        self.assertIn("Prof. Marcelo Claro Laranjeira", author)
+        self.assertIn("Professor de Geografia e Pedagogo", author)
+        self.assertIn("https://github.com/MarceloClaro", author)
+        self.assertIn("https://bit.ly/geomaker", author)
+        self.assertIn("0000-0001-8996-2887", author)
+        self.assertIn("@marceloclaro.geomaker", author)
+
     def test_selection_cells_cannot_load_test_data(self) -> None:
         forbidden = {"X_test", "y_test", "test_probability", "test_prediction"}
         for identifier in ("architecture-selection", "optimization", "landscape"):

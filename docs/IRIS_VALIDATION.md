@@ -2,7 +2,7 @@
 
 **Data:** 2 de setembro de 2026  
 **Escopo:** notebook Cirq + regressão logística para Google Colab  
-**SHA-256 do notebook:** `511a104ac5daeaecd3df4437f6e2684e0a3401cdbc1fbbb7eb33ee8419354f57`
+**SHA-256 do notebook:** `1c86caafb5d50c51b5cc44140e1366421795c7f4c5f958af2065bd5457d6b1e3`
 
 ## Decisão de validação
 
@@ -25,6 +25,7 @@ Essa aprovação não representa evidência de vantagem quântica nem validaçã
 | IRIS-RBS-01 | perturbação somente de `X_validation` | ausência de `X_test` na célula de robustez | Aprovado |
 | IRIS-REP-01 | gerador determinístico | dois builds produzem o mesmo SHA-256 | Aprovado |
 | IRIS-INT-01 | hashes dos CSVs e manifesto | recálculo e comparação | Aprovado |
+| IRIS-DOC-01 | apresentação do projeto e identificação do autor | teste dos conteúdos, links e ORCID | Aprovado |
 
 ## Ambiente e resultados observados
 
@@ -34,7 +35,7 @@ Essa aprovação não representa evidência de vantagem quântica nem validaçã
 | Cirq | 1.6.1 |
 | SciPy | 1.17.0 |
 | scikit-learn | 1.8.0 |
-| Testes estáticos | 8/8 aprovados |
+| Testes estáticos | 9/9 aprovados |
 | Tempo `smoke` | 7,6 s |
 | Tempo `full` | 25,7 s |
 | Pico de memória `full` | 206,6 MiB |

@@ -2,7 +2,7 @@
 
 **Data:** 2 de setembro de 2026  
 **Escopo:** notebook Cirq + regressão logística para Google Colab  
-**SHA-256 do notebook:** `403443bed05b9e85b513e7f909185ecf53002d2a34c5f229f07c588420bb9df0`
+**SHA-256 do notebook:** `c5f12d49ed94e4c216fac8075b6de02d5076be5b12daf8e99072818cb59ffe3e`
 
 ## Decisão de validação
 
@@ -35,7 +35,8 @@ O registro não contém uma mensagem do sistema operacional, portanto a causa ex
 | IRIS-CNV-02 | `full`: `tol=10⁻³`, limite de 160 avaliações | término pela redução do raio da região de confiança | Aprovado em 94 avaliações |
 | IRIS-CNV-03 | registro de `status`, mensagem, avaliações e tolerância | presença no `manifest.json` | Aprovado |
 | IRIS-BLD-01 | `X_test` e `y_test` só são materializados em `final-test` | análise AST das células | Aprovado |
-| IRIS-BLD-02 | flag `TEST_OPENED` | segunda execução de `final-test` deve falhar | Aprovado |
+| IRIS-BLD-02 | cache por número de execução | repetir `final-test` não incrementa aberturas nem altera métricas | Aprovado |
+| IRIS-BLD-03 | limpeza transitória + `_IRIS_RUN_SEQUENCE` | duas passagens completas no mesmo kernel | Aprovado: 22/22 células |
 | IRIS-RBS-01 | perturbação somente de `X_validation` | ausência de `X_test` na célula de robustez | Aprovado |
 | IRIS-RBS-02 | `SeedSequence([seed, nível, réplica])` | unicidade das sementes em todas as réplicas | Aprovado |
 | IRIS-REP-01 | gerador determinístico | dois builds produzem o mesmo SHA-256 | Aprovado |
@@ -51,15 +52,15 @@ Execução `full` limpa, na ordem efetiva do notebook:
 |---:|---|---|---:|---:|---|
 | 1 | `setup` | Python, versões e pós-instalação importável | 0,045 | 15,8 | Aprovado |
 | 2 | `imports-config` | imports, semente e perfil imutável | 1,548 | 195,2 | Aprovado |
-| 3 | `data` | forma, balanceamento, disjunção e teste selado | 0,004 | 195,8 | Aprovado |
+| 3 | `data` | forma, balanceamento, disjunção, limpeza e teste selado | 0,099 | 196,0 | Aprovado |
 | 4 | `circuits` | 4 qubits, 8 parâmetros, 3 topologias sem medição | 0,030 | 197,7 | Aprovado |
 | 5 | `features-tests` | observáveis físicos, erros de forma e determinismo | 0,031 | 198,2 | Aprovado |
 | 6 | `architecture-selection` | três ansätze e seleção só na validação | 0,849 | 199,1 | Aprovado |
-| 7 | `optimization` | histórico finito, limites e `success=True` | 16,708 | 199,9 | Aprovado |
-| 8 | `landscape` | grade completa e perdas finitas | 2,516 | 202,2 | Aprovado |
-| 9 | `robustness` | validação apenas e sementes únicas | 1,968 | 204,6 | Aprovado |
-| 10 | `final-test` | abertura única, métricas e IC95% | 3,500 | 206,1 | Aprovado |
-| 11 | `artifacts` | lista fechada, hashes e ZIP exato | 0,008 | 206,7 | Aprovado |
+| 7 | `optimization` | histórico finito, limites e `success=True` | 16,129 | 200,0 | Aprovado |
+| 8 | `landscape` | grade completa e perdas finitas | 2,666 | 202,2 | Aprovado |
+| 9 | `robustness` | validação apenas e sementes únicas | 1,846 | 204,6 | Aprovado |
+| 10 | `final-test` | cache idempotente, métricas e IC95% | 3,359 | 206,1 | Aprovado |
+| 11 | `artifacts` | lista fechada, hashes e ZIP exato | 0,007 | 206,6 | Aprovado |
 
 As sete células Markdown também foram verificadas quanto a ordem, apresentação, instruções, protocolo, equações e limites. Todas as 18 células têm identificadores únicos; as 11 células executáveis estão sem outputs persistidos e encerram com um gate explícito.
 
@@ -71,12 +72,13 @@ As sete células Markdown também foram verificadas quanto a ordem, apresentaç�
 | Cirq | 1.6.1 |
 | SciPy | 1.17.0 |
 | scikit-learn | 1.8.0 |
-| Testes estáticos | 14/14 aprovados |
+| Testes estáticos | 15/15 aprovados |
 | Células executáveis `smoke` | 11/11 aprovadas |
 | Células executáveis `full` | 11/11 aprovadas |
-| Tempo `smoke` | 7,34 s |
-| Tempo `full` | 27,21 s |
-| Pico de memória `full` | 206,93 MiB |
+| Duas passagens `smoke` no mesmo kernel | 22/22 aprovadas em 13,46 s |
+| Idempotência da célula final | aprovada nas duas passagens; nenhuma reabertura |
+| Tempo `full` | 26,60 s |
+| Pico de memória `full` | 208,11 MiB |
 | COBYLA `full` | `success=True`, 94 avaliações |
 | Log-loss de validação inicial → final | 0,04920 → 0,02943 |
 | Acurácia híbrida no teste | 1,000 |
@@ -90,19 +92,20 @@ Os tempos excluem o download inicial de dependências e dependem do hardware. O 
 
 No Colab:
 
-1. desconectar e excluir o runtime antigo;
-2. executar o perfil `smoke` desde a primeira célula;
-3. verificar os gates `TDD`, `COBYLA` e `FINAL`;
-4. reiniciar o runtime;
-5. selecionar `full` e executar novamente desde o início;
-6. baixar `iris_qml_results.zip` e conferir `sha256.json`.
+1. selecionar o runtime padrão CPU, sem GPU;
+2. manter `PROFILE = "smoke"` e clicar em **Executar tudo**;
+3. verificar os gates `TDD`, `COBYLA`, `TESTE FINAL` e `ARTEFATOS`;
+4. opcionalmente selecionar `full` e clicar novamente em **Executar tudo**;
+5. baixar `iris_qml_results.zip` e conferir `sha256.json`.
+
+A primeira passagem no kernel recebe o escopo `confirmatory_first_session_run`. Passagens completas posteriores recebem `technical_rerun_same_kernel`. Repetir apenas `final-test` produz `reused_without_test_reopening` e conserva o contador de abertura.
 
 Para validar o contrato estrutural do repositório:
 
 ```bash
 python scripts/build_iris_colab.py
 python -m unittest -v tests/test_iris_notebook.py
-python scripts/validate_iris_notebook.py --profile smoke --allow-install --report iris_smoke_report.json
+python scripts/validate_iris_notebook.py --profile smoke --repeat-run-all --allow-install --report iris_smoke_report.json
 ```
 
 ## Limites científicos remanescentes

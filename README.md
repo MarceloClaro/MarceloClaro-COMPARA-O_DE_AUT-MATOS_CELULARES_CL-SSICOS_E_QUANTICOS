@@ -12,6 +12,8 @@ Este envio adiciona a documentação da versão 2.0:
 - [protocolo científico confirmatório](docs/PROTOCOL.md);
 - [classificador Iris híbrido estável para Colab](Classificador_Qu%C3%A2ntico_H%C3%ADbrido_de_Alta_Performance_para_Classifica%C3%A7%C3%A3o_de_Dados_Iris_%28Otimizado%29.ipynb);
 - [gerador determinístico do notebook Iris](scripts/build_iris_colab.py);
+- [relatório e matriz de validação do classificador Iris](docs/IRIS_VALIDATION.md);
+- [testes de contrato TDD do notebook](tests/test_iris_notebook.py);
 - este README com escopo, compatibilidade e limites de interpretação.
 
 O notebook Iris foi reconstruído após a versão cumulativa exceder os recursos do Colab. Os demais notebooks existentes na raiz são preservados como material histórico. Eles não devem ser tratados como implementação confirmatória da especificação 2.0 sem que os respectivos gates TDD e de evidência tenham sido executados.
@@ -26,10 +28,12 @@ A versão anterior repetia todo o programa em células cumulativas e criava um n
 - reutiliza um único simulador Cirq e não cria modelos Keras dentro de loops;
 - calcula corretamente quatro expectativas de Pauli-Z;
 - separa treino, validação e teste em `60/20/20`, sem escolher arquitetura no teste;
+- exige `success=True` do COBYLA: meta operacional no `smoke` e convergência da região de confiança no `full`;
+- executa a robustez somente sobre a validação e mantém o teste selado até a confirmação única;
 - compara o pipeline híbrido com uma regressão logística clássica pré-especificada;
 - oferece os perfis `smoke` e `full`, testes TDD e artefatos com hashes SHA-256.
 
-Antes da primeira execução corrigida, use **Ambiente de execução → Desconectar e excluir ambiente de execução**. Em seguida, abra o link acima, mantenha `PROFILE = "smoke"` e execute as células em ordem. Só então selecione `full` no formulário da célula de configuração.
+Antes da primeira execução corrigida, use **Ambiente de execução → Desconectar e excluir ambiente de execução**. Em seguida, abra o link acima, mantenha `PROFILE = "smoke"` e execute as células em ordem. Após a conclusão, reinicie o runtime, selecione `full` no formulário da célula de configuração e execute novamente desde o início. O reinício é necessário porque o gate científico impede a segunda abertura do teste na mesma sessão.
 
 ## Correção conceitual central
 

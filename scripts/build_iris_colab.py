@@ -107,6 +107,8 @@ cells = [
         3. Execute **uma célula por vez** na primeira tentativa.
         4. Mantenha `PROFILE = "smoke"`. Depois que ele terminar, **reinicie o runtime**, selecione `"full"` e execute novamente desde o início.
 
+        Em cada célula de código, aguarde a mensagem `GATE ...: aprovado` antes de avançar. Se uma célula falhar, não continue com o estado parcial: copie o erro, reinicie o runtime e execute novamente desde o início. A célula de dependências pode levar alguns minutos na primeira execução, mas não deve reiniciar o ambiente nem instalar TensorFlow.
+
         A documentação oficial informa suporte do TensorFlow Quantum a Python 3.10–3.12. Este notebook não tenta instalar TFQ quando ele não é necessário e não imprime uma versão de Python presumida: a versão real é detectada abaixo.
         ''',
     ),
@@ -117,21 +119,13 @@ cells = [
         import importlib.util
         import os
         import platform
+        import site
         import subprocess
         import sys
         from importlib.metadata import PackageNotFoundError, version as distribution_version
 
-        missing = []
-        requirements = {
-            "cirq": "cirq-core==1.6.1",
-            "sklearn": "scikit-learn>=1.4,<2",
-            "scipy": "scipy>=1.16,<2",
-            "matplotlib": "matplotlib>=3.8,<4",
-            "pandas": "pandas>=2.0,<3",
-        }
-        for module, requirement in requirements.items():
-            if importlib.util.find_spec(module) is None:
-                missing.append(requirement)
+        if sys.version_info[:2] < (3, 10):
+            raise RuntimeError("Este notebook requer Python 3.10 ou superior.")
 
         def installed_version(distribution):
             try:
@@ -139,25 +133,76 @@ cells = [
             except PackageNotFoundError:
                 return None
 
-        def major_minor(distribution):
+        def numeric_version(distribution):
             try:
-                return tuple(int(part) for part in installed_version(distribution).split(".")[:2])
+                parts = installed_version(distribution).split(".")
+                return tuple(int(part.split("+")[0]) for part in parts[:3])
             except (AttributeError, ValueError):
-                return (0, 0)
+                return (0, 0, 0)
 
-        if importlib.util.find_spec("cirq") is not None and installed_version("cirq-core") != "1.6.1":
-            missing.append("cirq-core==1.6.1")
-        if importlib.util.find_spec("scipy") is not None and major_minor("scipy") < (1, 16):
-            missing.append("scipy>=1.16,<2")
+        # (módulo, distribuição, requisito pip, mínimo inclusivo, major máximo exclusivo)
+        dependency_contracts = (
+            ("cirq", "cirq-core", "cirq-core==1.6.1", (1, 6, 1), 2),
+            ("sklearn", "scikit-learn", "scikit-learn>=1.4,<2", (1, 4, 0), 2),
+            ("scipy", "scipy", "scipy>=1.16,<2", (1, 16, 0), 2),
+            ("matplotlib", "matplotlib", "matplotlib>=3.8,<4", (3, 8, 0), 4),
+            ("pandas", "pandas", "pandas>=2.0,<3", (2, 0, 0), 3),
+        )
+        def contract_satisfied(module, distribution, minimum, maximum_major):
+            detected = numeric_version(distribution)
+            return not (
+                importlib.util.find_spec(module) is None
+                or detected < minimum
+                or detected[0] >= maximum_major
+                or (distribution == "cirq-core" and installed_version(distribution) != "1.6.1")
+            )
+
+        missing = []
+        for module, distribution, requirement, minimum, maximum_major in dependency_contracts:
+            if not contract_satisfied(module, distribution, minimum, maximum_major):
+                missing.append(requirement)
+
         missing = list(dict.fromkeys(missing))
 
-        if missing and os.environ.get("IRIS_SKIP_INSTALL", "0") != "1":
-            subprocess.run([sys.executable, "-m", "pip", "install", "-q", *missing], check=True)
+        skip_install = os.environ.get("IRIS_SKIP_INSTALL", "0") == "1"
+        if missing and skip_install:
+            raise RuntimeError(
+                "Dependências incompatíveis e instalação desativada por IRIS_SKIP_INSTALL=1: "
+                + ", ".join(missing)
+            )
+        if missing:
+            try:
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "-q", *missing],
+                    check=True,
+                )
+            except subprocess.CalledProcessError as error:
+                raise RuntimeError(
+                    "Falha ao instalar dependências. Reinicie o runtime do Colab e execute "
+                    "novamente desde a primeira célula."
+                ) from error
+
+            # Alguns ambientes criam o diretório user-site durante o pip; o processo
+            # corrente precisa incorporá-lo antes que a célula seguinte faça imports.
+            site.addsitedir(site.getusersitepackages())
+            importlib.invalidate_caches()
+
+        remaining = [
+            requirement
+            for module, distribution, requirement, minimum, maximum_major in dependency_contracts
+            if not contract_satisfied(module, distribution, minimum, maximum_major)
+        ]
+        if remaining:
+            raise RuntimeError(
+                "Pós-condição de dependências falhou: " + ", ".join(remaining)
+                + ". Reinicie o runtime e execute novamente desde a primeira célula."
+            )
 
         print("Python real:", platform.python_version())
         print("Plataforma:", platform.platform())
         print("Dependências instaladas ou ajustadas:", missing or "nenhuma")
         print("TFQ suportado oficialmente por versão de Python:", (3, 10) <= sys.version_info[:2] <= (3, 12))
+        print("GATE SETUP: Python e contratos de dependência aprovados.")
         ''',
         tags=["setup"],
     ),
@@ -225,8 +270,14 @@ cells = [
             raise ValueError("IRIS_PROFILE deve ser 'smoke' ou 'full'.")
         SPEC = PROFILES[PROFILE]
 
+        assert SEED >= 0
+        assert SPEC.cobyla_maxfun > 0 and SPEC.cobyla_tol > 0
+        assert SPEC.landscape_points >= 3 and SPEC.bootstrap_resamples >= 1_000
+        assert SPEC.noise_replicates >= 3
+
         print("Perfil:", asdict(SPEC))
         print("Cirq:", cirq.__version__, "| NumPy:", np.__version__, "| SciPy:", scipy.__version__, "| scikit-learn:", sklearn.__version__)
+        print("GATE CONFIGURAÇÃO: perfil e sementes aprovados.")
         ''',
         tags=["parameters"],
     ),
@@ -249,6 +300,8 @@ cells = [
         - H3: COBYLA minimiza a perda positiva e deve retornar `success=True` por meta (`smoke`) ou convergência da região de confiança (`full`).
         - H4: nenhuma escolha de arquitetura ou hiperparâmetro consulta `y_test`.
         - H5: um gate de estado impede que o conjunto de teste seja aberto duas vezes no mesmo runtime.
+        - H6: cada par `(nível de ruído, réplica)` recebe uma semente determinística e única.
+        - H7: somente os artefatos pré-especificados entram no arquivo ZIP e todos têm SHA-256 verificável.
 
         A unidade experimental é a divisão estratificada fixada pela semente. Com apenas 20 casos de teste, o intervalo de incerteza deve ser relatado e conclusões fortes devem ser evitadas.
         ''',
@@ -262,6 +315,10 @@ cells = [
         X_raw = iris.data[mask].astype(np.float64)
         y = iris.target[mask].astype(np.int64)
         row_ids = np.arange(len(y))
+
+        assert X_raw.shape == (100, 4)
+        assert y.shape == (100,) and set(np.unique(y)) == {0, 1}
+        assert np.isfinite(X_raw).all()
 
         development_ids, test_ids = train_test_split(
             row_ids, test_size=0.20, random_state=SEED, stratify=y
@@ -277,16 +334,24 @@ cells = [
         assert set(train_ids).isdisjoint(test_ids)
         assert set(validation_ids).isdisjoint(test_ids)
         assert len(train_ids) + len(validation_ids) + len(test_ids) == len(y)
+        assert (len(train_ids), len(validation_ids), len(test_ids)) == (60, 20, 20)
 
         input_scaler = MinMaxScaler(feature_range=(0, 1), clip=True)
         X_train = input_scaler.fit_transform(X_raw[train_ids])
         X_validation = input_scaler.transform(X_raw[validation_ids])
         y_train, y_validation = y[train_ids], y[validation_ids]
+        assert X_train.shape == (60, 4) and X_validation.shape == (20, 4)
+        assert np.isfinite(X_train).all() and np.isfinite(X_validation).all()
+        assert np.min(X_train) >= 0.0 and np.max(X_train) <= 1.0
+        assert np.min(X_validation) >= 0.0 and np.max(X_validation) <= 1.0
+        assert np.bincount(y_train, minlength=2).tolist() == [30, 30]
+        assert np.bincount(y_validation, minlength=2).tolist() == [10, 10]
 
         # O teste permanece apenas como índices opacos até a célula confirmatória.
         if globals().get("TEST_OPENED", False):
             raise RuntimeError("O teste já foi aberto. Reinicie o runtime para uma nova execução.")
         TEST_OPENED = False
+        TEST_OPEN_COUNT = 0
         n_test_reserved = len(test_ids)
 
         split_table = pd.DataFrame({
@@ -296,6 +361,7 @@ cells = [
             "classe_1": [int((y_train == 1).sum()), int((y_validation == 1).sum()), "selado"],
         })
         display(split_table)
+        print("GATE DADOS: formas, classes, partições e normalização aprovadas; teste selado.")
         ''',
         tags=["test"],
     ),
@@ -344,9 +410,21 @@ cells = [
             return circuit, qubits, x_symbols, theta_symbols
 
         CIRCUITS = {name: build_vqc(name) for name in ("linear", "alternating", "ring")}
-        for name, (circuit, _, _, theta_symbols) in CIRCUITS.items():
+        circuit_signatures = set()
+        for name, (circuit, qubits, x_symbols, theta_symbols) in CIRCUITS.items():
+            assert len(qubits) == N_QUBITS and len(set(qubits)) == N_QUBITS
+            assert len(x_symbols) == N_QUBITS
+            assert len(theta_symbols) == N_QUBITS * N_LAYERS
+            assert cirq.parameter_names(circuit) == {
+                *(str(symbol) for symbol in x_symbols),
+                *(str(symbol) for symbol in theta_symbols),
+            }
+            assert not circuit.has_measurements()
+            circuit_signatures.add(str(circuit))
             print(f"{name}: momentos={len(circuit)}, parâmetros={len(theta_symbols)}")
             print(circuit)
+        assert len(circuit_signatures) == len(CIRCUITS)
+        print("GATE CIRCUITOS: topologias distintas, símbolos e qubits aprovados.")
         ''',
     ),
     code(
@@ -376,6 +454,8 @@ cells = [
                     qubit_order=qubits,
                 )
                 output[row_index] = np.real(values)
+            if not np.isfinite(output).all() or (output.size and np.max(np.abs(output)) > 1 + 1e-7):
+                raise FloatingPointError("Expectativas quânticas fora do domínio físico [-1, 1].")
             return output
 
         # Testes de observáveis conhecidos
@@ -389,12 +469,28 @@ cells = [
 
         rng = np.random.default_rng(SEED)
         initial_theta = rng.uniform(-np.pi, np.pi, N_QUBITS * N_LAYERS)
-        probe_a = quantum_features(CIRCUITS["linear"], X_train[:3], initial_theta)
+        probes = {
+            name: quantum_features(bundle, X_train[:3], initial_theta)
+            for name, bundle in CIRCUITS.items()
+        }
+        probe_a = probes["linear"]
         probe_b = quantum_features(CIRCUITS["linear"], X_train[:3], initial_theta)
-        assert probe_a.shape == (3, 4)
-        assert np.isfinite(probe_a).all()
-        assert np.max(np.abs(probe_a)) <= 1 + 1e-7
+        assert all(probe.shape == (3, 4) for probe in probes.values())
+        assert all(np.isfinite(probe).all() for probe in probes.values())
+        assert all(np.max(np.abs(probe)) <= 1 + 1e-7 for probe in probes.values())
         np.testing.assert_allclose(probe_a, probe_b, atol=1e-7)
+
+        for invalid_data, invalid_theta in (
+            (X_train[0], initial_theta),
+            (X_train[:2, :3], initial_theta),
+            (X_train[:2], initial_theta[:-1]),
+        ):
+            try:
+                quantum_features(CIRCUITS["linear"], invalid_data, invalid_theta)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("Entrada inválida deveria produzir ValueError.")
         print("GATE TDD: observáveis, forma, limites e reprodutibilidade aprovados.")
         ''',
         tags=["test", "gate"],
@@ -417,6 +513,9 @@ cells = [
             classifier = new_classifier()
             classifier.fit(train_features, y_train)
             validation_probability = classifier.predict_proba(validation_features)[:, 1]
+            assert validation_probability.shape == (len(y_validation),)
+            assert np.isfinite(validation_probability).all()
+            assert np.all((validation_probability >= 0.0) & (validation_probability <= 1.0))
             architecture_rows.append({
                 "architecture": name,
                 "validation_log_loss": log_loss(y_validation, validation_probability, labels=[0, 1]),
@@ -426,11 +525,21 @@ cells = [
             del train_features, validation_features, classifier
             gc.collect()
 
-        architecture_results = pd.DataFrame(architecture_rows).sort_values("validation_log_loss")
+        architecture_results = (
+            pd.DataFrame(architecture_rows)
+            .sort_values(["validation_log_loss", "architecture"], kind="stable")
+            .reset_index(drop=True)
+        )
+        assert set(architecture_results["architecture"]) == set(CIRCUITS)
+        assert len(architecture_results) == 3
+        assert np.isfinite(architecture_results["validation_log_loss"]).all()
+        assert architecture_results["validation_accuracy"].between(0.0, 1.0).all()
+        assert (architecture_results["seconds"] >= 0.0).all()
         display(architecture_results)
         best_architecture = str(architecture_results.iloc[0]["architecture"])
         best_bundle = CIRCUITS[best_architecture]
         print("Arquitetura escolhida sem consultar o teste:", best_architecture)
+        print("GATE SELEÇÃO: três arquiteturas avaliadas somente na validação.")
         ''',
         tags=["gate"],
     ),
@@ -472,11 +581,17 @@ cells = [
         )
         optimized_theta = np.asarray(optimization.x, dtype=np.float64)
         optimized_validation_loss = validation_objective(optimized_theta, record=False)
+        used_initial_fallback = bool(optimized_validation_loss > initial_validation_loss)
         if optimized_validation_loss > initial_validation_loss:
             optimized_theta = initial_theta.copy()
             optimized_validation_loss = initial_validation_loss
 
         optimization_seconds = time.perf_counter() - optimization_started
+        assert len(objective_history) == int(optimization.nfev)
+        assert np.isfinite(objective_history).all()
+        assert optimized_theta.shape == initial_theta.shape
+        assert np.all(optimized_theta >= -np.pi - 1e-7)
+        assert np.all(optimized_theta <= np.pi + 1e-7)
         optimization_record = {
             "success": bool(optimization.success),
             "status": int(optimization.status),
@@ -486,6 +601,10 @@ cells = [
             "tol": SPEC.cobyla_tol,
             "f_target": SPEC.cobyla_f_target,
             "seconds": optimization_seconds,
+            "initial_validation_log_loss": float(initial_validation_loss),
+            "optimizer_validation_log_loss": float(optimization.fun),
+            "selected_validation_log_loss": float(optimized_validation_loss),
+            "used_initial_fallback": used_initial_fallback,
         }
         print("COBYLA:", optimization_record)
         print(f"Log-loss inicial={initial_validation_loss:.6f}; selecionado={optimized_validation_loss:.6f}")
@@ -495,7 +614,8 @@ cells = [
                 "Não interprete os parâmetros como convergidos."
             )
         assert optimized_validation_loss <= initial_validation_loss + 1e-12
-        print("GATE COBYLA: critério de parada satisfeito.")
+        assert np.isfinite(optimized_validation_loss)
+        print("GATE COBYLA: parada, histórico, limites e não regressão aprovados.")
         gc.collect()
         ''',
         tags=["gate"],
@@ -511,6 +631,14 @@ cells = [
             candidate[0] = value
             landscape_loss.append(validation_objective(candidate, record=False))
 
+        landscape_results = pd.DataFrame({
+            "theta_0": grid,
+            "validation_log_loss": landscape_loss,
+        })
+        assert len(landscape_results) == SPEC.landscape_points
+        assert np.isfinite(landscape_results.to_numpy()).all()
+        assert (landscape_results["validation_log_loss"] >= 0.0).all()
+
         fig_landscape, axis = plt.subplots(figsize=(7, 4))
         axis.plot(grid, landscape_loss, marker="o")
         axis.axvline(optimized_theta[0], color="tab:red", linestyle="--", label="θ selecionado")
@@ -520,17 +648,25 @@ cells = [
         fig_landscape.tight_layout()
         plt.show()
         plt.close(fig_landscape)
+        print("GATE PAISAGEM: grade, finitude e perdas aprovadas.")
         ''',
     ),
     code(
         "final-test",
         r'''
-        # 9. Confirmação: ajuste final em treino+validação e uma única abertura do teste
+        # 10. Confirmação: ajuste final em treino+validação e uma única abertura do teste
         if TEST_OPENED:
             raise RuntimeError("O teste já foi aberto. Reinicie o runtime antes de repetir a confirmação.")
         X_test = input_scaler.transform(X_raw[test_ids])
         y_test = y[test_ids]
         TEST_OPENED = True
+        TEST_OPEN_COUNT += 1
+        assert TEST_OPEN_COUNT == 1
+        assert X_test.shape == (n_test_reserved, N_QUBITS)
+        assert y_test.shape == (n_test_reserved,)
+        assert np.isfinite(X_test).all()
+        assert np.min(X_test) >= 0.0 and np.max(X_test) <= 1.0
+        assert np.bincount(y_test, minlength=2).tolist() == [10, 10]
 
         X_fit = np.vstack((X_train, X_validation))
         y_fit = np.concatenate((y_train, y_validation))
@@ -541,12 +677,17 @@ cells = [
         final_classifier.fit(fit_features, y_fit)
         test_probability = final_classifier.predict_proba(test_features)[:, 1]
         test_prediction = (test_probability >= 0.5).astype(np.int64)
+        assert np.isfinite(test_probability).all()
+        assert np.all((test_probability >= 0.0) & (test_probability <= 1.0))
+        assert set(np.unique(test_prediction)).issubset({0, 1})
 
         # Comparador clássico pré-especificado: mesma divisão e mesma família de classificador.
         classical_classifier = new_classifier()
         classical_classifier.fit(X_fit, y_fit)
         classical_probability = classical_classifier.predict_proba(X_test)[:, 1]
         classical_prediction = (classical_probability >= 0.5).astype(np.int64)
+        assert np.isfinite(classical_probability).all()
+        assert np.all((classical_probability >= 0.0) & (classical_probability <= 1.0))
 
         def metric_row(model_name, probability, prediction):
             return {
@@ -563,6 +704,10 @@ cells = [
             "classical_logistic_regression", classical_probability, classical_prediction
         )
         test_metrics = pd.DataFrame([final_metrics, classical_metrics])
+        bounded_metrics = ["accuracy", "balanced_accuracy", "f1", "roc_auc"]
+        assert np.isfinite(test_metrics.select_dtypes(include=[np.number])).all().all()
+        assert all(test_metrics[column].between(0.0, 1.0).all() for column in bounded_metrics)
+        assert (test_metrics["log_loss"] >= 0.0).all()
 
         bootstrap_rng = np.random.default_rng(SEED + 1)
         bootstrap_log_loss = []
@@ -594,6 +739,7 @@ cells = [
         print(f"IC95% Wilson da acurácia híbrida: [{accuracy_ci[0]:.3f}, {accuracy_ci[1]:.3f}]")
         print(f"IC95% bootstrap do log-loss híbrido: [{log_loss_ci[0]:.4f}, {log_loss_ci[1]:.4f}]")
         assert accuracy_ci[0] <= observed_accuracy <= accuracy_ci[1]
+        assert np.isfinite(log_loss_ci).all() and log_loss_ci[0] <= log_loss_ci[1]
 
         matrix = confusion_matrix(y_test, test_prediction)
         fig_confusion, axis = plt.subplots(figsize=(5, 4))
@@ -612,21 +758,28 @@ cells = [
         fig_confusion.tight_layout()
         plt.show()
         plt.close(fig_confusion)
+        print("GATE TESTE FINAL: abertura única, métricas, incerteza e matriz aprovadas.")
         ''',
         tags=["confirmation"],
     ),
     code(
         "robustness",
         r'''
-        # 10. Robustez exploratória na VALIDAÇÃO (não reutiliza o teste e não é ruído de hardware)
+        # 9. Robustez exploratória na VALIDAÇÃO (não reutiliza o teste e não é ruído de hardware)
         robustness_train_features = quantum_features(best_bundle, X_train, optimized_theta)
         robustness_classifier = new_classifier()
         robustness_classifier.fit(robustness_train_features, y_train)
 
         noise_rows = []
-        for noise_level in (0.0, 0.05, 0.10, 0.15):
+        noise_levels = (0.0, 0.05, 0.10, 0.15)
+        for noise_index, noise_level in enumerate(noise_levels):
             for replicate in range(SPEC.noise_replicates):
-                noise_rng = np.random.default_rng(SEED + 1_000 * replicate + int(noise_level * 10_000))
+                # SeedSequence impede colisões entre pares (nível, réplica).
+                noise_seed = int(
+                    np.random.SeedSequence([SEED, noise_index, replicate])
+                    .generate_state(1, dtype=np.uint32)[0]
+                )
+                noise_rng = np.random.default_rng(noise_seed)
                 perturbed = np.clip(
                     X_validation + noise_rng.normal(0.0, noise_level, size=X_validation.shape),
                     0.0,
@@ -638,10 +791,15 @@ cells = [
                     "partition": "validation_post_selection",
                     "noise_level": noise_level,
                     "replicate": replicate,
+                    "noise_seed": noise_seed,
                     "accuracy": accuracy_score(y_validation, prediction),
                 })
 
         noise_results = pd.DataFrame(noise_rows)
+        assert len(noise_results) == len(noise_levels) * SPEC.noise_replicates
+        assert noise_results["noise_seed"].is_unique
+        assert not noise_results.duplicated(["noise_level", "replicate"]).any()
+        assert noise_results["accuracy"].between(0.0, 1.0).all()
         noise_summary = noise_results.groupby("noise_level", as_index=False).agg(
             accuracy_mean=("accuracy", "mean"),
             accuracy_std=("accuracy", "std"),
@@ -666,6 +824,9 @@ cells = [
         fig_noise.tight_layout()
         plt.show()
         plt.close(fig_noise)
+        zero_noise = noise_results.loc[noise_results["noise_level"] == 0.0, "accuracy"]
+        assert zero_noise.nunique() == 1
+        print("GATE ROBUSTEZ: partição, sementes únicas, réplicas e domínio aprovados.")
         del robustness_train_features, robustness_classifier
         gc.collect()
         ''',
@@ -677,12 +838,32 @@ cells = [
         output_dir = Path("/content/iris_qml_results") if Path("/content").exists() else Path("iris_qml_results")
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        architecture_results.to_csv(output_dir / "architecture_validation.csv", index=False)
-        noise_results.to_csv(output_dir / "validation_input_noise_raw.csv", index=False)
-        test_metrics.to_csv(output_dir / "test_metrics.csv", index=False)
+        architecture_path = output_dir / "architecture_validation.csv"
+        landscape_path = output_dir / "landscape_validation.csv"
+        noise_path = output_dir / "validation_input_noise_raw.csv"
+        metrics_path = output_dir / "test_metrics.csv"
+        parameters_path = output_dir / "optimized_parameters.csv"
+        history_path = output_dir / "optimization_history.csv"
+        manifest_path = output_dir / "manifest.json"
+
+        architecture_results.to_csv(architecture_path, index=False)
+        landscape_results.to_csv(landscape_path, index=False)
+        noise_results.to_csv(noise_path, index=False)
+        test_metrics.to_csv(metrics_path, index=False)
+        pd.DataFrame({
+            "parameter": [str(symbol) for symbol in best_bundle[3]],
+            "initial_value": initial_theta,
+            "selected_value": optimized_theta,
+        }).to_csv(parameters_path, index=False)
+        pd.DataFrame({
+            "evaluation": np.arange(1, len(objective_history) + 1),
+            "validation_log_loss": objective_history,
+        }).to_csv(history_path, index=False)
         manifest = {
+            "contract_version": "2.3.0",
             "profile": asdict(SPEC),
             "seed": SEED,
+            "noise_seed_strategy": "numpy.SeedSequence([seed, noise_index, replicate])",
             "python": platform.python_version(),
             "packages": {
                 "cirq": cirq.__version__,
@@ -703,29 +884,47 @@ cells = [
             "hybrid_log_loss_bootstrap_ci95": log_loss_ci.tolist(),
             "optimization": optimization_record,
             "test_opened_once": bool(TEST_OPENED),
+            "test_open_count": int(TEST_OPEN_COUNT),
             "robustness_partition": "validation_post_selection",
         }
-        (output_dir / "manifest.json").write_text(
+        manifest_path.write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
-        artifact_paths = sorted(output_dir.glob("*"))
+        # Lista fechada: resíduos de execuções antigas não entram nos hashes nem no ZIP.
+        artifact_paths = (
+            architecture_path,
+            landscape_path,
+            noise_path,
+            metrics_path,
+            parameters_path,
+            history_path,
+            manifest_path,
+        )
+        assert all(path.is_file() and path.stat().st_size > 0 for path in artifact_paths)
         hashes = {
             path.name: hashlib.sha256(path.read_bytes()).hexdigest()
             for path in artifact_paths
-            if path.is_file() and path.name != "sha256.json"
         }
-        (output_dir / "sha256.json").write_text(
+        sha_path = output_dir / "sha256.json"
+        sha_path.write_text(
             json.dumps(hashes, indent=2, sort_keys=True), encoding="utf-8"
         )
+        archive_members = (*artifact_paths, sha_path)
         archive = output_dir.with_suffix(".zip")
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
-            for path in sorted(output_dir.glob("*")):
+            for path in archive_members:
                 bundle.write(path, arcname=path.name)
+
+        for path in artifact_paths:
+            assert hashlib.sha256(path.read_bytes()).hexdigest() == hashes[path.name]
+        with zipfile.ZipFile(archive) as bundle:
+            assert sorted(bundle.namelist()) == sorted(path.name for path in archive_members)
 
         print("Resultados:", output_dir.resolve())
         print("Arquivo ZIP:", archive.resolve())
-        print("GATE FINAL: notebook concluído sem recriar modelos TensorFlow em loops.")
+        print("GATE ARTEFATOS: conjunto fechado, hashes e conteúdo do ZIP aprovados.")
+        print("GATE FINAL: todas as células concluídas sem recriar modelos TensorFlow em loops.")
         ''',
         tags=["artifacts", "gate"],
     ),
@@ -745,6 +944,32 @@ cells = [
         ''',
     ),
 ]
+
+# A análise de robustez é deliberadamente anterior à única abertura confirmatória.
+CELL_ORDER = (
+    "title",
+    "project-presentation",
+    "author-presentation",
+    "instructions",
+    "setup",
+    "imports-config",
+    "protocol",
+    "data",
+    "quantum-model",
+    "circuits",
+    "features-tests",
+    "architecture-selection",
+    "optimization",
+    "landscape",
+    "robustness",
+    "final-test",
+    "artifacts",
+    "limits",
+)
+cells_by_id = {cell["id"]: cell for cell in cells}
+assert len(cells_by_id) == len(cells) == len(CELL_ORDER)
+assert set(cells_by_id) == set(CELL_ORDER)
+cells = [cells_by_id[cell_id] for cell_id in CELL_ORDER]
 
 
 notebook = {

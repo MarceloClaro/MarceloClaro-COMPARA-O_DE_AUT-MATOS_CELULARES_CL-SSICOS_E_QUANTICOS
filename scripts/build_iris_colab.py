@@ -58,7 +58,7 @@ cells = [
         1. Use **Ambiente de execução → Desconectar e excluir ambiente de execução** para remover objetos da versão antiga.
         2. Abra novamente este notebook a partir do GitHub.
         3. Execute **uma célula por vez** na primeira tentativa.
-        4. Mantenha `PROFILE = "smoke"`. Troque para `"full"` somente depois que o smoke terminar.
+        4. Mantenha `PROFILE = "smoke"`. Depois que ele terminar, **reinicie o runtime**, selecione `"full"` e execute novamente desde o início.
 
         A documentação oficial informa suporte do TensorFlow Quantum a Python 3.10–3.12. Este notebook não tenta instalar TFQ quando ele não é necessário e não imprime uma versão de Python presumida: a versão real é detectada abaixo.
         ''',
@@ -72,12 +72,13 @@ cells = [
         import platform
         import subprocess
         import sys
+        from importlib.metadata import PackageNotFoundError, version as distribution_version
 
         missing = []
         requirements = {
             "cirq": "cirq-core==1.6.1",
             "sklearn": "scikit-learn>=1.4,<2",
-            "scipy": "scipy>=1.11,<2",
+            "scipy": "scipy>=1.16,<2",
             "matplotlib": "matplotlib>=3.8,<4",
             "pandas": "pandas>=2.0,<3",
         }
@@ -85,12 +86,30 @@ cells = [
             if importlib.util.find_spec(module) is None:
                 missing.append(requirement)
 
+        def installed_version(distribution):
+            try:
+                return distribution_version(distribution)
+            except PackageNotFoundError:
+                return None
+
+        def major_minor(distribution):
+            try:
+                return tuple(int(part) for part in installed_version(distribution).split(".")[:2])
+            except (AttributeError, ValueError):
+                return (0, 0)
+
+        if importlib.util.find_spec("cirq") is not None and installed_version("cirq-core") != "1.6.1":
+            missing.append("cirq-core==1.6.1")
+        if importlib.util.find_spec("scipy") is not None and major_minor("scipy") < (1, 16):
+            missing.append("scipy>=1.16,<2")
+        missing = list(dict.fromkeys(missing))
+
         if missing and os.environ.get("IRIS_SKIP_INSTALL", "0") != "1":
             subprocess.run([sys.executable, "-m", "pip", "install", "-q", *missing], check=True)
 
         print("Python real:", platform.python_version())
         print("Plataforma:", platform.platform())
-        print("Dependências ausentes instaladas:", missing or "nenhuma")
+        print("Dependências instaladas ou ajustadas:", missing or "nenhuma")
         print("TFQ suportado oficialmente por versão de Python:", (3, 10) <= sys.version_info[:2] <= (3, 12))
         ''',
         tags=["setup"],
@@ -135,14 +154,23 @@ cells = [
         @dataclass(frozen=True)
         class Profile:
             name: str
-            cobyla_maxiter: int
+            cobyla_maxfun: int
+            cobyla_tol: float
+            cobyla_f_target: float | None
             landscape_points: int
             bootstrap_resamples: int
             noise_replicates: int
 
         PROFILES = {
-            "smoke": Profile("smoke", cobyla_maxiter=12, landscape_points=7, bootstrap_resamples=1_000, noise_replicates=3),
-            "full": Profile("full", cobyla_maxiter=35, landscape_points=15, bootstrap_resamples=5_000, noise_replicates=10),
+            # Smoke: gate operacional por meta; full: convergência pelo raio da região de confiança.
+            "smoke": Profile(
+                "smoke", cobyla_maxfun=40, cobyla_tol=1e-2, cobyla_f_target=0.04,
+                landscape_points=7, bootstrap_resamples=1_000, noise_replicates=3,
+            ),
+            "full": Profile(
+                "full", cobyla_maxfun=160, cobyla_tol=1e-3, cobyla_f_target=None,
+                landscape_points=15, bootstrap_resamples=5_000, noise_replicates=10,
+            ),
         }
         PROFILE = "smoke"  # @param ["smoke", "full"]
         PROFILE = os.environ.get("IRIS_PROFILE", PROFILE)
@@ -164,14 +192,16 @@ cells = [
         |---|---|---|
         | Ajuste | treino | ajustar classificador clássico |
         | Seleção | validação | escolher arquitetura e parâmetros quânticos |
+        | Robustez exploratória | validação perturbada | diagnóstico pós-seleção, sem abrir o teste |
         | Confirmação | teste | estimar desempenho uma única vez |
 
         Hipóteses e critérios:
 
         - H1: a extração retorna quatro expectativas físicas em `[-1,1]`.
         - H2: repetir com a mesma configuração produz os mesmos atributos.
-        - H3: COBYLA minimiza a perda de validação positiva; não se usa `-val_loss`.
+        - H3: COBYLA minimiza a perda positiva e deve retornar `success=True` por meta (`smoke`) ou convergência da região de confiança (`full`).
         - H4: nenhuma escolha de arquitetura ou hiperparâmetro consulta `y_test`.
+        - H5: um gate de estado impede que o conjunto de teste seja aberto duas vezes no mesmo runtime.
 
         A unidade experimental é a divisão estratificada fixada pela semente. Com apenas 20 casos de teste, o intervalo de incerteza deve ser relatado e conclusões fortes devem ser evitadas.
         ''',
@@ -204,14 +234,19 @@ cells = [
         input_scaler = MinMaxScaler(feature_range=(0, 1), clip=True)
         X_train = input_scaler.fit_transform(X_raw[train_ids])
         X_validation = input_scaler.transform(X_raw[validation_ids])
-        X_test = input_scaler.transform(X_raw[test_ids])
-        y_train, y_validation, y_test = y[train_ids], y[validation_ids], y[test_ids]
+        y_train, y_validation = y[train_ids], y[validation_ids]
+
+        # O teste permanece apenas como índices opacos até a célula confirmatória.
+        if globals().get("TEST_OPENED", False):
+            raise RuntimeError("O teste já foi aberto. Reinicie o runtime para uma nova execução.")
+        TEST_OPENED = False
+        n_test_reserved = len(test_ids)
 
         split_table = pd.DataFrame({
             "partição": ["treino", "validação", "teste reservado"],
-            "n": [len(y_train), len(y_validation), len(y_test)],
-            "classe_0": [(target == 0).sum() for target in (y_train, y_validation, y_test)],
-            "classe_1": [(target == 1).sum() for target in (y_train, y_validation, y_test)],
+            "n": [len(y_train), len(y_validation), n_test_reserved],
+            "classe_0": [int((y_train == 0).sum()), int((y_validation == 0).sum()), "selado"],
+            "classe_1": [int((y_train == 1).sum()), int((y_validation == 1).sum()), "selado"],
         })
         display(split_table)
         ''',
@@ -372,12 +407,21 @@ cells = [
 
         initial_validation_loss = validation_objective(initial_theta, record=False)
         optimization_started = time.perf_counter()
+        cobyla_options = {
+            "maxiter": SPEC.cobyla_maxfun,
+            "rhobeg": 0.5,
+            "tol": SPEC.cobyla_tol,
+            "catol": 1e-4,
+        }
+        if SPEC.cobyla_f_target is not None:
+            cobyla_options["f_target"] = SPEC.cobyla_f_target
+
         optimization = minimize(
             validation_objective,
             initial_theta,
             method="COBYLA",
             bounds=[(-np.pi, np.pi)] * len(initial_theta),
-            options={"maxiter": SPEC.cobyla_maxiter, "rhobeg": 0.5, "catol": 1e-4},
+            options=cobyla_options,
         )
         optimized_theta = np.asarray(optimization.x, dtype=np.float64)
         optimized_validation_loss = validation_objective(optimized_theta, record=False)
@@ -386,10 +430,25 @@ cells = [
             optimized_validation_loss = initial_validation_loss
 
         optimization_seconds = time.perf_counter() - optimization_started
-        print("Avaliações COBYLA:", len(objective_history))
+        optimization_record = {
+            "success": bool(optimization.success),
+            "status": int(optimization.status),
+            "message": str(optimization.message),
+            "nfev": int(optimization.nfev),
+            "maxfun": SPEC.cobyla_maxfun,
+            "tol": SPEC.cobyla_tol,
+            "f_target": SPEC.cobyla_f_target,
+            "seconds": optimization_seconds,
+        }
+        print("COBYLA:", optimization_record)
         print(f"Log-loss inicial={initial_validation_loss:.6f}; selecionado={optimized_validation_loss:.6f}")
-        print(f"Tempo de otimização: {optimization_seconds:.2f} s")
+        if not optimization.success:
+            raise RuntimeError(
+                "GATE COBYLA FALHOU: o critério de parada não foi satisfeito. "
+                "Não interprete os parâmetros como convergidos."
+            )
         assert optimized_validation_loss <= initial_validation_loss + 1e-12
+        print("GATE COBYLA: critério de parada satisfeito.")
         gc.collect()
         ''',
         tags=["gate"],
@@ -420,6 +479,12 @@ cells = [
         "final-test",
         r'''
         # 9. Confirmação: ajuste final em treino+validação e uma única abertura do teste
+        if TEST_OPENED:
+            raise RuntimeError("O teste já foi aberto. Reinicie o runtime antes de repetir a confirmação.")
+        X_test = input_scaler.transform(X_raw[test_ids])
+        y_test = y[test_ids]
+        TEST_OPENED = True
+
         X_fit = np.vstack((X_train, X_validation))
         y_fit = np.concatenate((y_train, y_validation))
         fit_features = quantum_features(best_bundle, X_fit, optimized_theta)
@@ -506,22 +571,27 @@ cells = [
     code(
         "robustness",
         r'''
-        # 10. Robustez exploratória a perturbação gaussiana da ENTRADA (não é ruído de hardware)
+        # 10. Robustez exploratória na VALIDAÇÃO (não reutiliza o teste e não é ruído de hardware)
+        robustness_train_features = quantum_features(best_bundle, X_train, optimized_theta)
+        robustness_classifier = new_classifier()
+        robustness_classifier.fit(robustness_train_features, y_train)
+
         noise_rows = []
         for noise_level in (0.0, 0.05, 0.10, 0.15):
             for replicate in range(SPEC.noise_replicates):
                 noise_rng = np.random.default_rng(SEED + 1_000 * replicate + int(noise_level * 10_000))
                 perturbed = np.clip(
-                    X_test + noise_rng.normal(0.0, noise_level, size=X_test.shape),
+                    X_validation + noise_rng.normal(0.0, noise_level, size=X_validation.shape),
                     0.0,
                     1.0,
                 )
                 perturbed_features = quantum_features(best_bundle, perturbed, optimized_theta)
-                prediction = final_classifier.predict(perturbed_features)
+                prediction = robustness_classifier.predict(perturbed_features)
                 noise_rows.append({
+                    "partition": "validation_post_selection",
                     "noise_level": noise_level,
                     "replicate": replicate,
-                    "accuracy": accuracy_score(y_test, prediction),
+                    "accuracy": accuracy_score(y_validation, prediction),
                 })
 
         noise_results = pd.DataFrame(noise_rows)
@@ -540,7 +610,7 @@ cells = [
             capsize=4,
         )
         axis.set(
-            title="Robustez exploratória a perturbação da entrada",
+            title="Robustez exploratória — validação pós-seleção",
             xlabel="desvio-padrão do ruído gaussiano",
             ylabel="acurácia",
             ylim=(0, 1.05),
@@ -549,6 +619,7 @@ cells = [
         fig_noise.tight_layout()
         plt.show()
         plt.close(fig_noise)
+        del robustness_train_features, robustness_classifier
         gc.collect()
         ''',
     ),
@@ -560,7 +631,7 @@ cells = [
         output_dir.mkdir(parents=True, exist_ok=True)
 
         architecture_results.to_csv(output_dir / "architecture_validation.csv", index=False)
-        noise_results.to_csv(output_dir / "input_noise_raw.csv", index=False)
+        noise_results.to_csv(output_dir / "validation_input_noise_raw.csv", index=False)
         test_metrics.to_csv(output_dir / "test_metrics.csv", index=False)
         manifest = {
             "profile": asdict(SPEC),
@@ -575,7 +646,7 @@ cells = [
             "split_sizes": {
                 "train": len(y_train),
                 "validation": len(y_validation),
-                "test": len(y_test),
+                "test": n_test_reserved,
             },
             "selected_architecture": best_architecture,
             "initial_validation_log_loss": initial_validation_loss,
@@ -583,7 +654,9 @@ cells = [
             "test_metrics": test_metrics.to_dict(orient="records"),
             "hybrid_accuracy_wilson_ci95": accuracy_ci.tolist(),
             "hybrid_log_loss_bootstrap_ci95": log_loss_ci.tolist(),
-            "optimization_seconds": optimization_seconds,
+            "optimization": optimization_record,
+            "test_opened_once": bool(TEST_OPENED),
+            "robustness_partition": "validation_post_selection",
         }
         (output_dir / "manifest.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -617,7 +690,8 @@ cells = [
         - O teste contém somente 20 flores; acurácia de 100% pode ocorrer e não prova superioridade do método.
         - Este é um simulador clássico de quatro qubits, não execução em QPU e não evidência de vantagem quântica.
         - A busca compara três ansätze em uma única divisão; uma publicação exigiria validação cruzada aninhada com sementes externas.
-        - O ensaio de robustez perturba atributos de entrada. Ele não representa ruído de porta, decoerência ou erro de leitura.
+        - O ensaio de robustez perturba a validação depois da seleção; é diagnóstico exploratório e não uma estimativa confirmatória independente.
+        - O teste fica selado até a célula confirmatória e um gate impede sua segunda abertura no mesmo runtime.
         - TFQ é uma camada TensorFlow–Cirq. A documentação oficial limita o suporte binário normal a Python 3.10–3.12; em Python 3.13 deve-se usar outro runtime ou a rota Cirq deste notebook.
 
         Referências: [TensorFlow Quantum — instalação](https://www.tensorflow.org/quantum/install), [Cirq](https://quantumai.google/cirq), [Iris dataset](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_iris.html).

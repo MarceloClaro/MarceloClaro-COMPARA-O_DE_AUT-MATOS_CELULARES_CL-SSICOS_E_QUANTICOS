@@ -63,6 +63,7 @@ def execute(args: argparse.Namespace) -> int:
         "python": sys.version.split()[0],
         "status": "running",
         "cells": [],
+        "final_cell_idempotence": [],
     }
 
     temporary = tempfile.TemporaryDirectory(prefix="iris-notebook-") if args.workdir is None else None
@@ -74,53 +75,71 @@ def execute(args: argparse.Namespace) -> int:
             run_directory = Path(run_directory_text)
             run_directory.mkdir(parents=True, exist_ok=True)
             os.chdir(run_directory)
-            for ordinal, cell in enumerate(code_cells, start=1):
-                cell_id = cell["id"]
-                source = "".join(cell.get("source", []))
-                started = time.perf_counter()
-                record = {"ordinal": ordinal, "id": cell_id, "status": "running"}
-                report["cells"].append(record)
-                try:
-                    compiled = compile(source, f"{NOTEBOOK.name}::{cell_id}", "exec")
-                    exec(compiled, namespace)
-                except Exception as error:  # relatório precisa preservar a célula exata
+            confirmation = next(cell for cell in code_cells if cell["id"] == "final-test")
+            total_runs = 2 if args.repeat_run_all else 1
+            for run_number in range(1, total_runs + 1):
+                for ordinal, cell in enumerate(code_cells, start=1):
+                    cell_id = cell["id"]
+                    source = "".join(cell.get("source", []))
+                    started = time.perf_counter()
+                    record = {
+                        "run": run_number,
+                        "ordinal": ordinal,
+                        "id": cell_id,
+                        "status": "running",
+                    }
+                    report["cells"].append(record)
+                    try:
+                        compiled = compile(
+                            source,
+                            f"{NOTEBOOK.name}::run-{run_number}::{cell_id}",
+                            "exec",
+                        )
+                        exec(compiled, namespace)
+                    except Exception as error:  # preserva a célula e a passagem exatas
+                        record.update(
+                            status="failed",
+                            seconds=time.perf_counter() - started,
+                            peak_rss_mib=peak_rss_mib(),
+                            error_type=type(error).__name__,
+                            error=str(error),
+                            traceback=traceback.format_exc(),
+                        )
+                        report["status"] = "failed"
+                        report["failed_run"] = run_number
+                        report["failed_cell"] = cell_id
+                        report["total_seconds"] = time.perf_counter() - started_all
+                        report["peak_rss_mib"] = peak_rss_mib()
+                        write_report(report_path, report)
+                        return 1
                     record.update(
-                        status="failed",
+                        status="passed",
                         seconds=time.perf_counter() - started,
                         peak_rss_mib=peak_rss_mib(),
-                        error_type=type(error).__name__,
-                        error=str(error),
-                        traceback=traceback.format_exc(),
                     )
-                    report["status"] = "failed"
-                    report["failed_cell"] = cell_id
-                    report["total_seconds"] = time.perf_counter() - started_all
-                    report["peak_rss_mib"] = peak_rss_mib()
-                    write_report(report_path, report)
-                    return 1
-                record.update(
-                    status="passed",
-                    seconds=time.perf_counter() - started,
-                    peak_rss_mib=peak_rss_mib(),
-                )
 
-            # O segundo disparo deve parar antes de tocar novamente no teste.
-            confirmation = next(cell for cell in code_cells if cell["id"] == "final-test")
-            try:
+                # Repetir somente a confirmação deve usar cache e não reabrir o teste.
+                openings_before = namespace["_IRIS_SESSION_TEST_OPENINGS"]
+                metrics_before = namespace["test_metrics"].to_json()
                 exec(
                     compile(
                         "".join(confirmation["source"]),
-                        f"{NOTEBOOK.name}::final-test-reexecution",
+                        f"{NOTEBOOK.name}::run-{run_number}::final-test-cache-check",
                         "exec",
                     ),
                     namespace,
                 )
-            except RuntimeError as error:
-                if "já foi aberto" not in str(error):
-                    raise
-                report["test_reexecution_guard"] = "passed"
-            else:
-                raise AssertionError("A segunda execução da célula final deveria ser bloqueada.")
+                assert namespace["_IRIS_SESSION_TEST_OPENINGS"] == openings_before
+                assert namespace["TEST_OPEN_COUNT"] == 1
+                assert namespace["test_metrics"].to_json() == metrics_before
+                assert namespace["cache_mode"] == "reused_without_test_reopening"
+                report["final_cell_idempotence"].append({
+                    "run": run_number,
+                    "status": "passed",
+                    "session_test_openings": openings_before,
+                })
+
+            report["run_all_repetitions"] = total_runs
     finally:
         os.chdir(original_directory)
 
@@ -145,6 +164,11 @@ def parse_args() -> argparse.Namespace:
         help="diretório de execução persistente; por padrão usa um diretório temporário",
     )
     parser.add_argument("--report", type=Path, help="caminho opcional do relatório JSON")
+    parser.add_argument(
+        "--repeat-run-all",
+        action="store_true",
+        help="executa o notebook inteiro duas vezes no mesmo kernel para testar reentrância",
+    )
     return parser.parse_args()
 
 

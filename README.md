@@ -10,9 +10,26 @@ Este envio adiciona a documentação da versão 2.0:
 
 - [especificação SDD e matriz de rastreabilidade](docs/SDD.md);
 - [protocolo científico confirmatório](docs/PROTOCOL.md);
+- [classificador Iris híbrido estável para Colab](Classificador_Qu%C3%A2ntico_H%C3%ADbrido_de_Alta_Performance_para_Classifica%C3%A7%C3%A3o_de_Dados_Iris_%28Otimizado%29.ipynb);
+- [gerador determinístico do notebook Iris](scripts/build_iris_colab.py);
 - este README com escopo, compatibilidade e limites de interpretação.
 
-Os notebooks existentes na raiz são preservados como material histórico. Eles não devem ser tratados como implementação confirmatória da especificação 2.0 sem que os respectivos gates TDD e de evidência tenham sido executados.
+O notebook Iris foi reconstruído após a versão cumulativa exceder os recursos do Colab. Os demais notebooks existentes na raiz são preservados como material histórico. Eles não devem ser tratados como implementação confirmatória da especificação 2.0 sem que os respectivos gates TDD e de evidência tenham sido executados.
+
+## Classificador Iris: correção para o Colab
+
+[![Abrir o classificador Iris no Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/blob/main/Classificador_Qu%C3%A2ntico_H%C3%ADbrido_de_Alta_Performance_para_Classifica%C3%A7%C3%A3o_de_Dados_Iris_%28Otimizado%29.ipynb)
+
+A versão anterior repetia todo o programa em células cumulativas e criava um novo modelo Keras dentro de cada avaliação COBYLA. Isso mantinha centenas de grafos e camadas na memória até o runtime ser encerrado. A versão atual:
+
+- instala somente dependências ausentes e não substitui o TensorFlow do Colab;
+- reutiliza um único simulador Cirq e não cria modelos Keras dentro de loops;
+- calcula corretamente quatro expectativas de Pauli-Z;
+- separa treino, validação e teste em `60/20/20`, sem escolher arquitetura no teste;
+- compara o pipeline híbrido com uma regressão logística clássica pré-especificada;
+- oferece os perfis `smoke` e `full`, testes TDD e artefatos com hashes SHA-256.
+
+Antes da primeira execução corrigida, use **Ambiente de execução → Desconectar e excluir ambiente de execução**. Em seguida, abra o link acima, mantenha `PROFILE = "smoke"` e execute as células em ordem. Só então selecione `full` no formulário da célula de configuração.
 
 ## Correção conceitual central
 

@@ -1,0 +1,44 @@
+Perfil: smoke | CPU | execução 2
+Pasta exclusiva: /workspace/scratch/7795da2482a7/repo_eca/eca_validation_logs/20260903T224010Z-0dcf4db2/notebook-runs/smoke/20260903T224056Z-b9a40694
+Código: /workspace/scratch/7795da2482a7/repo_eca
+Commit: d2a734b4492c79474e20415f2dfca6022c58fab3
+Python científico: /tmp/eca-venv/bin/python
+Versões verificadas: {"numpy": "2.0.2", "qiskit": "2.5.2", "qiskit-aer": "0.17.2", "PennyLane": "0.45.1", "cirq-core": "1.5.0", "tensorflow": "2.18.1", "tf-keras": "2.18.0", "tensorflow-quantum": "0.7.6", "pyparsing": "3.2.5", "matplotlib": "3.10.6", "pandas": "2.2.2", "pytest": "8.4.2", "nbformat": "5.10.4", "nbclient": "0.10.2", "psutil": "7.0.0", "ipykernel": "6.30.1"}
+<IPython.core.display.HTML object>
+As ilustrações didáticas ficam separadas dos dados experimentais.
+........................................................................ [ 15%]
+........................................................................ [ 31%]
+........................................................................ [ 46%]
+........................................................................ [ 62%]
+........................................................................ [ 77%]
+........................................................................ [ 93%]
+...............................                                          [100%]
+463 passed in 3.40s
+
+<IPython.core.display.HTML object>
+<IPython.core.display.Image object>
+<IPython.core.display.HTML object>
+<IPython.core.display.HTML object>
+<IPython.core.display.HTML object>
+<IPython.core.display.HTML object>
+<IPython.core.display.Image object>
+<IPython.core.display.HTML object>
+<IPython.core.display.HTML object>
+<IPython.core.display.Image object>
+<IPython.core.display.Image object>
+<IPython.core.display.HTML object>
+ZIP: /workspace/scratch/7795da2482a7/repo_eca/eca_validation_logs/20260903T224010Z-0dcf4db2/notebook-runs/smoke/20260903T224056Z-b9a40694/eca_qca_smoke_bundle.zip
+SHA-256 do ZIP: fa74343d64b8324acc0b581d44eea5323a74f91e2a623a95fd1026ae78103b73
+Ilustrações didáticas: /workspace/scratch/7795da2482a7/repo_eca/eca_validation_logs/20260903T224010Z-0dcf4db2/notebook-runs/smoke/20260903T224056Z-b9a40694/didactic
+/workspace/scratch/7795da2482a7/repo_eca/eca_validation_logs/20260903T224010Z-0dcf4db2/notebook-runs/smoke/20260903T224056Z-b9a40694/eca_qca_smoke_bundle.zip
+SHA-256 verifica integridade; não prova autoria nem validade científica.
+Execução concluída: {
+  "status": "completed",
+  "profile": "smoke",
+  "run_number": 2,
+  "run_id": "20260903T224056Z-b9a40694",
+  "output_dir": "/workspace/scratch/7795da2482a7/repo_eca/eca_validation_logs/20260903T224010Z-0dcf4db2/notebook-runs/smoke/20260903T224056Z-b9a40694",
+  "technical_gate_passed": true,
+  "bundle_sha256": "fa74343d64b8324acc0b581d44eea5323a74f91e2a623a95fd1026ae78103b73"
+}
+Você pode repetir Executar tudo: uma nova pasta preservará esta execução.

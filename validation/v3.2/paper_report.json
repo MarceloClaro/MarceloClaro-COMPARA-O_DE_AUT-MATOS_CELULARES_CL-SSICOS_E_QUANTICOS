@@ -1,0 +1,44 @@
+{
+  "confirmatory_claims_enabled": true,
+  "counts": {
+    "basis_backend_checks": 288,
+    "benchmark_records": 360,
+    "coherent_backend_checks": 9,
+    "native_noise_backend_runs": 0,
+    "noise_design_units": 840,
+    "noise_distinct_streams": 840,
+    "noise_records": 2520,
+    "primary_artifacts": 10,
+    "statevector_pair_checks": 297,
+    "tfq_observable_checks": 495
+  },
+  "hypotheses": {
+    "H1_basis_equivalence": true,
+    "H2_cross_framework_fidelity": true,
+    "H3_H4_evaluated": true,
+    "H3_ber_matches_p": true,
+    "H4_exact_success_matches_theory": true,
+    "decision_rule": "compatibilidade simultânea Bonferroni–Hoeffding com alfa familiar de 0,05; IC95% bootstrap relatado separadamente"
+  },
+  "noise": {
+    "limitation": "não executa canais nativos por SDK; não representa ruído por porta ou hardware",
+    "model": "independent output bit-flip",
+    "pairing": "one realization per design unit, shared across backend labels",
+    "sampler": "numpy.random.Generator(PCG64)"
+  },
+  "numerics": {
+    "maximum_basis_probability_error": 9.769962616701378e-15,
+    "maximum_phase_aligned_error": 4.884981308350689e-15,
+    "maximum_tfq_analytical_error": 1.2263027236465024e-13,
+    "maximum_tfq_expectation_error": 1.2262333347074633e-13,
+    "minimum_cross_framework_fidelity": 0.9999999999999999
+  },
+  "profile": "paper",
+  "schema_version": "3.2",
+  "technical_gate_passed": true,
+  "tfq": {
+    "available": true,
+    "error": null,
+    "interpretation": "integração TensorFlow–Cirq; não é implementação independente"
+  }
+}

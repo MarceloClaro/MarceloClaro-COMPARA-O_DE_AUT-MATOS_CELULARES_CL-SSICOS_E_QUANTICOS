@@ -1,0 +1,18 @@
+{
+  "schema_version": "3.2",
+  "executor": "nbclient / real ipykernel",
+  "status": "failed",
+  "error": "Traceback (most recent call last):\n  File \"/workspace/scratch/7795da2482a7/repo_eca/scripts/validate_eca_notebook.py\", line 106, in main\n    with client.setup_kernel(cwd=str(ROOT), env=env):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/contextlib.py\", line 137, in __enter__\n    return next(self.gen)\n           ^^^^^^^^^^^^^^\n  File \"/tmp/eca-venv/lib/python3.12/site-packages/nbclient/client.py\", line 603, in setup_kernel\n    self.start_new_kernel_client()\n  File \"/tmp/eca-venv/lib/python3.12/site-packages/jupyter_core/utils/__init__.py\", line 165, in wrapped\n    return loop.run_until_complete(inner)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py\", line 691, in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n  File \"/tmp/eca-venv/lib/python3.12/site-packages/nbclient/client.py\", line 566, in async_start_new_kernel_client\n    await ensure_async(self.kc.wait_for_ready(timeout=self.startup_timeout))\n  File \"/tmp/eca-venv/lib/python3.12/site-packages/jupyter_core/utils/__init__.py\", line 214, in ensure_async\n    result = await obj\n             ^^^^^^^^^\n  File \"/tmp/eca-venv/lib/python3.12/site-packages/jupyter_client/client.py\", line 207, in _async_wait_for_ready\n    raise RuntimeError(msg)\nRuntimeError: Kernel died before replying to kernel_info\n",
+  "profile": "smoke",
+  "checks": {
+    "21_cells": true,
+    "11_code": true,
+    "author": true,
+    "orcid": true,
+    "no_guard": true,
+    "tfq_semantics": true,
+    "no_sdk_import_in_ui": true
+  },
+  "runs": [],
+  "same_kernel_reentry": false
+}

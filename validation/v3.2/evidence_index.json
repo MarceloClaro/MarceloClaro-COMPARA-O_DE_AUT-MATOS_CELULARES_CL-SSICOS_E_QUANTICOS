@@ -1,0 +1,29 @@
+{
+  "schema_version": "3.2",
+  "validation_date_utc": "2026-09-03",
+  "local_code_commit": "d2a734b4492c79474e20415f2dfca6022c58fab3",
+  "published_equivalent_code_commit": "40284806648a7ed914ed131360bf505318df6f32",
+  "validated_git_tree": "a76b54670ec6d1400ced032451c2fd92b1a1015b",
+  "eca_tests_passed": 463,
+  "complete_suite_tests_passed": 478,
+  "complete_suite_command": "python -m pytest -q tests",
+  "complete_suite_exit_code": 0,
+  "complete_suite_stdout_summary": "478 passed in 3.62s",
+  "notebook_executor": "namespace",
+  "notebook_code_cells": 11,
+  "notebook_passes_same_namespace": 2,
+  "real_jupyter_kernel_validated": false,
+  "colab_frontend_validated": false,
+  "new_independent_confirmation": false,
+  "zip_sha256": {
+    "eca_qca_smoke_bundle.zip": "b6a39864b36d1a709565fa3ed053d63ccc9399262e821dd582887b216e686692",
+    "eca_qca_paper_bundle.zip": "1ae12f1ed2d2eed90392c17387214f93f503ccb2dce928ca1dfed88da212b4dc"
+  },
+  "verified_per_bundle": {"scientific_artifacts": 10, "metadata_files": 2},
+  "limitations": [
+    "Jupyter kernel startup blocked by execution-environment permissions",
+    "Namespace validation does not validate the Colab frontend or a clean Colab installation",
+    "Noise realizations are NumPy-generated and shared across backend labels",
+    "No quantum advantage, hardware result, novelty or editorial acceptance is inferred"
+  ]
+}

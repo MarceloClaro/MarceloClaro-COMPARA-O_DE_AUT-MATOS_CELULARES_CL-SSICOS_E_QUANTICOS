@@ -129,6 +129,8 @@ Se um ambiente restrito proibir iniciar Jupyter, existe a opção explícita **-
 
 ## Evidências e arquivos
 
+Validação v3.2: **463 testes ECA e 478 testes totais aprovados**, perfis smoke/paper reproduzidos e 11 células de código executadas duas vezes em namespace Python. **Execução real no Colab/Jupyter ainda não comprovada nesta revisão**; a tentativa Jupyter foi bloqueada por permissões do ambiente. Consulte o relatório para o escopo exato.
+
 O ZIP contém **10 artefatos científicos + manifesto + relatório + checksums**. No esquema 3.2, os hashes cobrem os 10 artefatos e os dois JSONs de metadados. O hash do próprio ZIP fica em um recibo externo, evitando circularidade. A verificação não extrai nomes fornecidos pelo ZIP e rejeita membros inesperados/duplicados.
 
 SHA-256 detecta alterações acidentais quando comparado a uma referência confiável; **não autentica autoria nem comprova correção científica**.

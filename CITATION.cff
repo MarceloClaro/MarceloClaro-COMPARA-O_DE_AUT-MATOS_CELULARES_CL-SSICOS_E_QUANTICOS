@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "Se este laboratório apoiar sua pesquisa, cite o software e o commit utilizado."
 type: software
 title: "Laboratório ECA/QCA multiframework"
-version: 3.1.0
+version: 3.2.0
 date-released: 2026-09-03
 authors:
   - family-names: Laranjeira

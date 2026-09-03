@@ -1,7 +1,7 @@
-name: ECA confirmatory validation
+# MODELO INATIVO: este arquivo está fora de .github/workflows.
+# Só reative conscientemente após verificar as condições da conta GitHub.
+name: ECA manual validation (optional template)
 on:
-  push: {branches: [main]}
-  pull_request:
   workflow_dispatch:
 permissions: {contents: read}
 jobs:

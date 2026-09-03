@@ -48,9 +48,13 @@ PROFILE_SPECS: Mapping[str, ExperimentSpec] = {
 }
 
 def _bits(bits: Sequence[int], name="state"):
-    b=tuple(int(x) for x in bits)
-    if not b or any(x not in (0,1) for x in b): raise ValueError(f"{name} deve conter bits")
-    return b
+    try:
+        b=tuple(bits)
+    except TypeError as error:
+        raise ValueError(f"{name} deve conter bits") from error
+    if not b or any(not isinstance(x,(int,np.integer,bool,np.bool_)) or x not in (0,1) for x in b):
+        raise ValueError(f"{name} deve conter bits inteiros 0 ou 1")
+    return tuple(int(x) for x in b)
 def index_from_bits(bits):
     v=0
     for b in _bits(bits,"bits"): v=(v<<1)|b

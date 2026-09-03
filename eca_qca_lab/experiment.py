@@ -10,7 +10,7 @@ from .adapters import BACKENDS,statevector,tfq_batch_expectations
 from .core import *
 
 PRIMARY_ARTIFACTS=("basis_parity.csv","statevector_parity.csv","coherent_states.csv","tfq_integration.csv","noise_raw.csv","noise_summary.csv","benchmark_raw.csv","benchmark_summary.csv","figure_noise.png","figure_benchmark.png")
-SCHEMA_VERSION="3.1"
+SCHEMA_VERSION="3.2"
 FAMILYWISE_ALPHA=.05
 def _csv(path,rows):
     if not rows:raise ValueError(f"sem linhas: {path}")
@@ -35,7 +35,7 @@ def _versions():
 def _git(root):
     def run(*a):
         p=subprocess.run(["git",*a],cwd=root,text=True,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL);return p.stdout.strip() if p.returncode==0 else None
-    status=run("status","--porcelain");return {"commit":run("rev-parse","HEAD"),"branch":run("rev-parse","--abbrev-ref","HEAD"),"dirty":None if status is None else bool(status)}
+    status=run("status","--porcelain");return {"commit":run("rev-parse","HEAD"),"tree":run("rev-parse","HEAD^{tree}"),"branch":run("rev-parse","--abbrev-ref","HEAD"),"dirty":None if status is None else bool(status)}
 def _basis_coherent(spec):
     basis=[];pairs=[];coherent=[];cases=[]
     for rule in spec.rules:
@@ -66,9 +66,12 @@ def _tfq(spec,cases,required):
     for case,observed in zip(cases,values,strict=True):
       ref=oracle_statevector(int(case["rule"]),spec.n_cells,plus_input=True) if case["mode"]=="plus" else oracle_statevector(int(case["rule"]),spec.n_cells,initial=case["initial"])
       expected=output_z_expectations(ref,spec.n_cells)
+      kwargs={"plus_input":True} if case["mode"]=="plus" else {"initial":case["initial"]}
+      cirq_values=output_z_expectations(statevector("cirq",int(case["rule"]),spec.n_cells,**kwargs),spec.n_cells)
       if len(observed)!=spec.n_cells:raise RuntimeError("TFQ: observáveis incompatíveis")
-      for cell,(actual,target) in enumerate(zip(observed,expected,strict=True)):
-        error=abs(float(actual)-float(target));rows.append({"profile":spec.name,"available":True,"rule":case["rule"],"mode":case["mode"],"state_id":"" if case["state_id"] is None else case["state_id"],"output_cell":cell,"cirq_reference_z":float(target),"tfq_z":float(actual),"absolute_error":error,"passed":error<=2e-5})
+      for cell,(actual,target,cirq_value) in enumerate(zip(observed,expected,cirq_values,strict=True)):
+        error=abs(float(actual)-float(cirq_value));analytic_error=abs(float(actual)-float(target));cirq_error=abs(float(cirq_value)-float(target))
+        rows.append({"profile":spec.name,"available":True,"rule":case["rule"],"mode":case["mode"],"state_id":"" if case["state_id"] is None else case["state_id"],"output_cell":cell,"cirq_reference_z":float(cirq_value),"analytical_reference_z":float(target),"tfq_z":float(actual),"absolute_error":error,"analytical_absolute_error":analytic_error,"cirq_analytical_absolute_error":cirq_error,"passed":error<=2e-5 and analytic_error<=2e-5 and cirq_error<=2e-5})
     return rows,True,None
 def _noise(spec):
     raw=[]
@@ -78,7 +81,7 @@ def _noise(spec):
        for p in spec.bitflip_probabilities:
         for base in spec.base_seeds:
          seed=derive_seed("eca-qca-noise-v3",spec.name,rule,sid,p,base);ber,exact=sample_output_bitflip(expected,p,spec.shots,seed)
-         for backend in BACKENDS:raw.append({"profile":spec.name,"rule":rule,"state_id":sid,"initial":initial,"expected":expected,"backend":backend,"bitflip_probability":p,"base_seed":base,"simulator_seed":seed,"shots":spec.shots,"bit_error_rate":ber,"exact_state_success":exact,"theoretical_ber":p,"theoretical_exact_success":(1-p)**spec.n_cells})
+         for backend in BACKENDS:raw.append({"profile":spec.name,"rule":rule,"state_id":sid,"initial":initial,"expected":expected,"backend":backend,"bitflip_probability":p,"base_seed":base,"simulator_seed":seed,"unit_id":f"{spec.name}:{rule}:{sid}:{p}:{base}","noise_model":"independent_output_bitflip","sampler":"numpy.PCG64","backend_pairing":"same_realization","shots":spec.shots,"bit_error_rate":ber,"exact_state_success":exact,"theoretical_ber":p,"theoretical_exact_success":(1-p)**spec.n_cells})
     groups=defaultdict(list)
     for r in raw:groups[(r["backend"],r["rule"],r["bitflip_probability"])].append(r)
     simultaneous_checks=2*len(groups) # BER e sucesso exato em cada estrato
@@ -108,30 +111,134 @@ def _benchmark(spec):
     for b in BACKENDS:
       vals=[r["runtime_seconds"] for r in raw if r["backend"]==b];q1,med,q3=quartiles(vals);summary.append({"profile":spec.name,"backend":b,"observations":len(vals),"q1_seconds":q1,"median_seconds":med,"q3_seconds":q3,"iqr_seconds":q3-q1,"interpretation":"simulador clássico; não mede vantagem quântica"})
     return raw,summary
-def _figures(dest,noise,bench):
-    os.environ.setdefault("MPLBACKEND","Agg");import matplotlib.pyplot as plt
-    ps=sorted({float(r["bitflip_probability"]) for r in noise});n=PROFILE_SPECS[str(noise[0]["profile"])].n_cells;fig,ax=plt.subplots(1,2,figsize=(10,4),constrained_layout=True)
-    for b in BACKENDS:
-      rows=[r for r in noise if r["backend"]==b];ax[0].plot(ps,[np.mean([r["ber_mean"] for r in rows if r["bitflip_probability"]==p]) for p in ps],"o-",label=b);ax[1].plot(ps,[np.mean([r["exact_success_mean"] for r in rows if r["bitflip_probability"]==p]) for p in ps],"o-",label=b)
-    ax[0].plot(ps,ps,"k--",label="teoria p");ax[1].plot(ps,[(1-p)**n for p in ps],"k--",label="teoria (1-p)^n")
-    for a,title,y in zip(ax,("Erro de bit","Estado completo"),("BER","Sucesso exato")):a.set(xlabel="Probabilidade de bit-flip",ylabel=y,title=title);a.grid(alpha=.25);a.legend(fontsize=8)
-    fig.savefig(dest/"figure_noise.png",dpi=300);plt.close(fig)
-    labels=[r["backend"] for r in bench];med=[r["median_seconds"] for r in bench];lo=[r["median_seconds"]-r["q1_seconds"] for r in bench];hi=[r["q3_seconds"]-r["median_seconds"] for r in bench];fig,a=plt.subplots(figsize=(6.5,4),constrained_layout=True);a.bar(labels,med,yerr=np.asarray([lo,hi]),capsize=4);a.set(ylabel="Tempo (s)",title="Microbenchmark — mediana e IQR");a.grid(axis="y",alpha=.25);fig.savefig(dest/"figure_benchmark.png",dpi=300);plt.close(fig)
-def run_experiment(output_dir,*,profile="smoke",require_tfq=True,project_root=None):
-    if profile not in PROFILE_SPECS:raise ValueError("profile inválido")
-    spec=PROFILE_SPECS[profile];dest=Path(output_dir).resolve();dest.mkdir(parents=True,exist_ok=True);root=Path(project_root).resolve() if project_root else Path(__file__).resolve().parents[1];started=datetime.now(timezone.utc)
-    basis,pairs,coherent,cases=_basis_coherent(spec)
-    if not all(r["passed"] for r in basis+pairs+coherent):raise RuntimeError("gate determinístico falhou")
-    tfq,available,error=_tfq(spec,cases,require_tfq);tfq_pass=available and all(r["passed"] for r in tfq)
-    if require_tfq and not tfq_pass:raise RuntimeError("gate TFQ falhou")
-    noise_raw,noise_summary=_noise(spec);bench_raw,bench_summary=_benchmark(spec)
-    tables={"basis_parity.csv":basis,"statevector_parity.csv":pairs,"coherent_states.csv":coherent,"tfq_integration.csv":tfq,"noise_raw.csv":noise_raw,"noise_summary.csv":noise_summary,"benchmark_raw.csv":bench_raw,"benchmark_summary.csv":bench_summary}
-    for name,rows in tables.items():_csv(dest/name,rows)
-    _figures(dest,noise_summary,bench_summary)
-    technical=all(r["passed"] for r in basis+pairs+coherent) and tfq_pass
-    result={"schema_version":SCHEMA_VERSION,"profile":profile,"technical_gate_passed":technical,"confirmatory_claims_enabled":profile=="paper" and technical,"hypotheses":{"H1_basis_equivalence":all(r["passed"] for r in basis),"H2_cross_framework_fidelity":all(r["passed"] for r in pairs),"H3_ber_matches_p":profile=="paper" and all(r["ber_compatible"] for r in noise_summary),"H4_exact_success_matches_theory":profile=="paper" and all(r["exact_compatible"] for r in noise_summary),"H3_H4_evaluated":profile=="paper","decision_rule":"compatibilidade simultânea Bonferroni–Hoeffding com alfa familiar de 0,05; IC95% bootstrap relatado separadamente"},"counts":{"basis_backend_checks":len(basis),"statevector_pair_checks":len(pairs),"coherent_backend_checks":len(coherent),"tfq_observable_checks":len(tfq) if available else 0,"noise_records":len(noise_raw),"noise_design_units":len({r["simulator_seed"] for r in noise_raw}),"benchmark_records":len(bench_raw),"primary_artifacts":10},"numerics":{"minimum_cross_framework_fidelity":min(r["fidelity"] for r in pairs),"maximum_basis_probability_error":max(r["max_probability_error"] for r in basis),"maximum_phase_aligned_error":max(r["max_phase_error"] for r in basis+coherent),"maximum_tfq_expectation_error":max((r["absolute_error"] for r in tfq if r.get("available")),default=None)},"tfq":{"available":available,"error":error,"interpretation":"integração TensorFlow–Cirq; não é implementação independente"}}
-    (dest/"validation_report.json").write_text(stable_json(result),encoding="utf-8");hashes={n:sha256_file(dest/n) for n in PRIMARY_ARTIFACTS};manifest={"schema_version":SCHEMA_VERSION,"created_utc":datetime.now(timezone.utc).isoformat(),"started_utc":started.isoformat(),"python":sys.version,"platform":platform.platform(),"versions":_versions(),"git":_git(root),"specification":spec.to_dict(),"result":result,"artifact_sha256":hashes};(dest/"manifest.json").write_text(stable_json(manifest),encoding="utf-8");(dest/"SHA256SUMS.txt").write_text("".join(f"{h}  {n}\n" for n,h in sorted(hashes.items())),encoding="utf-8")
-    bundle=dest/f"eca_qca_{profile}_bundle.zip"
-    with zipfile.ZipFile(bundle,"w",zipfile.ZIP_DEFLATED) as z:
-      for n in (*PRIMARY_ARTIFACTS,"manifest.json","validation_report.json","SHA256SUMS.txt"):z.write(dest/n,arcname=n)
-    result["bundle"]=str(bundle);result["bundle_sha256"]=sha256_file(bundle);(dest/"validation_report.json").write_text(stable_json(result),encoding="utf-8");return result
+def _figures(dest, noise, bench):
+    os.environ.setdefault("MPLBACKEND", "Agg")
+    import matplotlib.pyplot as plt
+    # Uma realização comum: não fazer média de etiquetas de SDK como se
+    # fossem novas amostras. Exibimos o bootstrap do estrato Qiskit.
+    rows = [r for r in noise if r["backend"] == "qiskit"]
+    n = PROFILE_SPECS[str(rows[0]["profile"])].n_cells
+    fig, axes = plt.subplots(2, 3, figsize=(12, 7), layout="constrained")
+    for col, (rule, color) in enumerate(zip(SUPPORTED_RULES, ("#147d92", "#9b4bba", "#d65b2c"), strict=True)):
+        selected = sorted((r for r in rows if r["rule"] == rule), key=lambda r: r["bitflip_probability"])
+        ps = np.asarray([r["bitflip_probability"] for r in selected])
+        dense = np.linspace(0, max(ps), 200)
+        for row_index, (prefix, label, theory) in enumerate((
+            ("ber", "BER", dense),
+            ("exact_success", "Sucesso exato", (1-dense)**n),
+        )):
+            ax = axes[row_index, col]
+            mean = np.asarray([r[prefix+"_mean"] for r in selected])
+            low = np.asarray([r[prefix+"_ci95_low"] for r in selected])
+            high = np.asarray([r[prefix+"_ci95_high"] for r in selected])
+            ax.plot(dense, theory, color="#26344e", linestyle="--", label="Previsão analítica")
+            ax.errorbar(ps, mean, yerr=[np.maximum(0, mean-low), np.maximum(0, high-mean)],
+                        color=color, fmt="o", capsize=4, label="Média e IC95% bootstrap")
+            ax.set(xlabel="Probabilidade de bit-flip p", ylabel=label, title=f"Regra {rule}", ylim=(-.03, 1.03) if row_index else (-.02, max(ps)+.06))
+            ax.grid(alpha=.18)
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="outside lower center", ncol=2, frameon=False)
+    fig.suptitle("Ruído na saída: canal comum aos três SDKs\nUnidades pareadas · ICs descritivos; decisão por Bonferroni–Hoeffding", fontsize=14)
+    fig.savefig(dest/"figure_noise.png", dpi=300)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(8, 4.5), layout="constrained")
+    for i, (row, color) in enumerate(zip(bench, ("#147d92", "#9b4bba", "#d65b2c"), strict=True)):
+        med = 1000*row["median_seconds"]
+        ax.errorbar(i, med, yerr=[[med-1000*row["q1_seconds"]], [1000*row["q3_seconds"]-med]],
+                    fmt="o", color=color, capsize=8, markersize=9)
+        ax.annotate(f"{med:.2f} ms", (i, med), xytext=(12, 7), textcoords="offset points", fontsize=10)
+    ax.set_xticks(range(len(bench)), [r["backend"] for r in bench])
+    ax.set(xlim=(-.5, 2.6), ylim=(0, 1.25*max(1000*r["q3_seconds"] for r in bench)), ylabel="Construção + simulação (ms)",
+           title="Microbenchmark de simuladores clássicos\nMediana e IQR · warm-up excluído · sem inferência de vantagem quântica")
+    ax.grid(axis="y", alpha=.2)
+    fig.savefig(dest/"figure_benchmark.png", dpi=300)
+    plt.close(fig)
+
+
+def run_experiment(output_dir, *, profile="smoke", require_tfq=True, project_root=None):
+    if profile not in PROFILE_SPECS:
+        raise ValueError("profile inválido")
+    spec = PROFILE_SPECS[profile]
+    dest = Path(output_dir).resolve()
+    reserved = (*PRIMARY_ARTIFACTS, "manifest.json", "validation_report.json", "SHA256SUMS.txt",
+                f"eca_qca_{profile}_bundle.zip", "bundle_receipt.json")
+    if any((dest/name).exists() for name in reserved):
+        raise FileExistsError("Pasta já contém resultados. Escolha uma nova pasta; os dados existentes não serão sobrescritos.")
+    dest.mkdir(parents=True, exist_ok=True)
+    root = Path(project_root).resolve() if project_root else Path(__file__).resolve().parents[1]
+    started = datetime.now(timezone.utc)
+    basis, pairs, coherent, cases = _basis_coherent(spec)
+    if not all(r["passed"] for r in basis+pairs+coherent):
+        raise RuntimeError("gate determinístico falhou")
+    tfq, available, error = _tfq(spec, cases, require_tfq)
+    tfq_pass = available and all(r["passed"] for r in tfq)
+    if require_tfq and not tfq_pass:
+        raise RuntimeError("gate TFQ falhou")
+    noise_raw, noise_summary = _noise(spec)
+    bench_raw, bench_summary = _benchmark(spec)
+    tables = {
+        "basis_parity.csv": basis, "statevector_parity.csv": pairs,
+        "coherent_states.csv": coherent, "tfq_integration.csv": tfq,
+        "noise_raw.csv": noise_raw, "noise_summary.csv": noise_summary,
+        "benchmark_raw.csv": bench_raw, "benchmark_summary.csv": bench_summary,
+    }
+    for name, rows in tables.items():
+        _csv(dest/name, rows)
+    _figures(dest, noise_summary, bench_summary)
+    technical = all(r["passed"] for r in basis+pairs+coherent) and tfq_pass
+    confirmatory = profile == "paper" and technical
+    result = {
+        "schema_version": SCHEMA_VERSION, "profile": profile,
+        "technical_gate_passed": technical, "confirmatory_claims_enabled": confirmatory,
+        "hypotheses": {
+            "H1_basis_equivalence": all(r["passed"] for r in basis),
+            "H2_cross_framework_fidelity": all(r["passed"] for r in pairs),
+            "H3_ber_matches_p": confirmatory and all(r["ber_compatible"] for r in noise_summary),
+            "H4_exact_success_matches_theory": confirmatory and all(r["exact_compatible"] for r in noise_summary),
+            "H3_H4_evaluated": confirmatory,
+            "decision_rule": "compatibilidade simultânea Bonferroni–Hoeffding com alfa familiar de 0,05; IC95% bootstrap relatado separadamente",
+        },
+        "counts": {
+            "basis_backend_checks": len(basis), "statevector_pair_checks": len(pairs),
+            "coherent_backend_checks": len(coherent), "tfq_observable_checks": len(tfq) if available else 0,
+            "noise_records": len(noise_raw), "noise_design_units": len({r["unit_id"] for r in noise_raw}),
+            "noise_distinct_streams": len({r["simulator_seed"] for r in noise_raw}),
+            "native_noise_backend_runs": 0,
+            "benchmark_records": len(bench_raw), "primary_artifacts": len(PRIMARY_ARTIFACTS),
+        },
+        "numerics": {
+            "minimum_cross_framework_fidelity": min(r["fidelity"] for r in pairs),
+            "maximum_basis_probability_error": max(r["max_probability_error"] for r in basis),
+            "maximum_phase_aligned_error": max(r["max_phase_error"] for r in basis+coherent),
+            "maximum_tfq_expectation_error": max((r["absolute_error"] for r in tfq if r.get("available")), default=None),
+            "maximum_tfq_analytical_error": max((r["analytical_absolute_error"] for r in tfq if r.get("available")), default=None),
+        },
+        "tfq": {"available": available, "error": error, "interpretation": "integração TensorFlow–Cirq; não é implementação independente"},
+        "noise": {
+            "model": "independent output bit-flip",
+            "sampler": "numpy.random.Generator(PCG64)",
+            "pairing": "one realization per design unit, shared across backend labels",
+            "limitation": "não executa canais nativos por SDK; não representa ruído por porta ou hardware",
+        },
+    }
+    (dest/"validation_report.json").write_text(stable_json(result), encoding="utf-8")
+    hashes = {name: sha256_file(dest/name) for name in PRIMARY_ARTIFACTS}
+    manifest = {
+        "schema_version": SCHEMA_VERSION, "created_utc": datetime.now(timezone.utc).isoformat(),
+        "started_utc": started.isoformat(), "python": sys.version, "platform": platform.platform(),
+        "versions": _versions(), "git": _git(root), "specification": spec.to_dict(),
+        "result": result, "artifact_sha256": hashes,
+    }
+    (dest/"manifest.json").write_text(stable_json(manifest), encoding="utf-8")
+    checksums = {**hashes, **{name: sha256_file(dest/name) for name in ("manifest.json", "validation_report.json")}}
+    (dest/"SHA256SUMS.txt").write_text("".join(f"{value}  {name}\n" for name, value in sorted(checksums.items())), encoding="utf-8")
+    bundle = dest/f"eca_qca_{profile}_bundle.zip"
+    with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name in (*PRIMARY_ARTIFACTS, "manifest.json", "validation_report.json", "SHA256SUMS.txt"):
+            archive.write(dest/name, arcname=name)
+    # O hash do próprio ZIP é um recibo externo: não modificar o relatório
+    # científico depois de arquivá-lo (evita circularidade e divergência).
+    receipt = {"bundle": str(bundle), "bundle_sha256": sha256_file(bundle)}
+    (dest/"bundle_receipt.json").write_text(stable_json(receipt), encoding="utf-8")
+    return {**result, **receipt}

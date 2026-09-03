@@ -4,15 +4,15 @@ import json, os, subprocess, sys
 from pathlib import Path
 from typing import Mapping, Sequence
 import numpy as np
-from .core import truth_table
+from .core import truth_table, _bits
 
 BACKENDS=("qiskit","pennylane","cirq")
 def _request(rule,n,initial,plus):
     if n<3 or rule not in range(256): raise ValueError("regra/tamanho inválido")
     if plus==(initial is not None): raise ValueError("use initial ou plus_input")
     if initial is None:return None
-    b=tuple(int(x) for x in initial)
-    if len(b)!=n or any(x not in (0,1) for x in b): raise ValueError("initial inválido")
+    b=_bits(initial,"initial")
+    if len(b)!=n: raise ValueError("initial inválido")
     return b
 def _mins(rule): return tuple(row[:3] for row in truth_table(rule) if row[3])
 def _near(i,n): return ((i-1)%n,i,(i+1)%n)

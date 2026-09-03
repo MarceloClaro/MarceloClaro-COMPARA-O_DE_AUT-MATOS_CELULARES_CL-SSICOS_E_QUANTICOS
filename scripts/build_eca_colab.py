@@ -1,103 +1,233 @@
 #!/usr/bin/env python3
-"""Gera deterministicamente o notebook Colab ECA/QCA."""
-import argparse,json
+"""Gera deterministicamente o notebook Colab ECA/QCA — UI leve, SDKs isolados."""
+import argparse
+import json
 from pathlib import Path
-ROOT=Path(__file__).resolve().parents[1]
-NB=ROOT/"COMPARAÇÃO_DE_AUTÔMATOS_CELULARES_CLÁSSICOS_E_QUANTICOS_Performance,_robustez_ao_ruído_e_aplicações_.ipynb"
-def m(text,id):return {"cell_type":"markdown","id":id,"metadata":{},"source":text.strip().splitlines(keepends=True)}
-def c(text,id):return {"cell_type":"code","execution_count":None,"id":id,"metadata":{},"outputs":[],"source":text.strip().splitlines(keepends=True)}
+
+ROOT = Path(__file__).resolve().parents[1]
+NB = ROOT / "COMPARAÇÃO_DE_AUTÔMATOS_CELULARES_CLÁSSICOS_E_QUANTICOS_Performance,_robustez_ao_ruído_e_aplicações_.ipynb"
+REPO = "MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS"
+
+
+def m(text, id):
+    return {"cell_type": "markdown", "id": id, "metadata": {}, "source": text.strip().splitlines(keepends=True)}
+
+
+def c(text, id):
+    return {"cell_type": "code", "execution_count": None, "id": id, "metadata": {},
+            "outputs": [], "source": text.strip().splitlines(keepends=True)}
+
+
 def build():
- cells=[
- m(r'''<a href="https://colab.research.google.com/github/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/blob/main/COMPARA%C3%87%C3%83O_DE_AUT%C3%94MATOS_CELULARES_CL%C3%81SSICOS_E_QUANTICOS_Performance%2C_robustez_ao_ru%C3%ADdo_e_aplica%C3%A7%C3%B5es_.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg"/></a>
-# Laboratório ECA/QCA multiframework v3.1
-**MARCELO CLARO LARANJEIRA — [@MarceloClaro](https://github.com/MarceloClaro)**<br>
-Professor de Geografia e Pedagogo · Crateús–CE<br>
+    cells = [
+        m(r'''![Autômatos celulares: do padrão à prova. Padrão da regra 30 calculado com 81 células e 40 passos.](https://raw.githubusercontent.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/main/assets/eca-cover.png)
+
+# Autômatos celulares · do padrão à prova
+### Laboratório científico-didático · v3.2 · CPU
+
+**MARCELO CLARO LARANJEIRA** · [@MarceloClaro](https://github.com/MarceloClaro)<br>
+Professor de Geografia e Pedagogo · Crateús, Ceará, Brasil<br>
 [GeoMaker](https://bit.ly/geomaker) · [ORCID 0000-0001-8996-2887](https://orcid.org/0000-0001-8996-2887) · [Instagram](https://www.instagram.com/marceloclaro.geomaker/)
 
-Regras 30, 60 e 90 e $U_F|x\rangle|y\rangle=|x\rangle|y\oplus F(x)\rangle$ em Qiskit, PennyLane e Cirq. TFQ integra TensorFlow–Cirq e **não é uma quarta implementação independente**. Sem alegação de vantagem quântica.''',"title"),
- m('''## Antes de executar
-Use **CPU**, mantenha `smoke` e clique em **Executar tudo**. Repetir é seguro: não existe bloqueio de teste aberto.
+**A pergunta que guia o laboratório:** como representar uma dinâmica clássica possivelmente irreversível sem apagar informação em um circuito unitário?
 
-**502 em `prod.colab.dev/api/kernelspecs`:** a VM não criou o kernel; reconecte uma sessão CPU. **Compatibilidade:** TFQ roda em **processo isolado** com TF 2.18.1, TF-Keras 2.18.0 e Cirq 1.5.0.''',"before"),
- c('''import os,sys
+Você vai **ler padrões → construir o modelo → testar equivalência → interpretar incerteza → exportar evidências**. Os três SDKs são Qiskit, PennyLane e Cirq. TFQ integra TensorFlow–Cirq e **não é uma quarta implementação independente**.
+
+> Escopo: incorporação reversível de uma etapa ECA finita. Não é uma demonstração de vantagem quântica nem uma QCA física infinita completa.''', "title"),
+        m('''## Comece aqui
+1. Selecione **CPU / nenhum acelerador** no Colab.
+2. Mantenha o perfil **smoke** abaixo e use **Ambiente de execução → Executar tudo**.
+3. Aguarde a instalação isolada. Ao final, veja o painel e guarde o ZIP.
+
+**Aprendizagem:** siga os mapas, tabelas e exercícios. **Pesquisa:** leia o [protocolo](https://github.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/blob/main/docs/PROTOCOL.md) antes de escolher **paper**. Reexecutar uma semente reproduz a mesma unidade; não cria uma nova réplica.
+
+**Sem serviço pago obrigatório:** não usa GPU, API paga ou GitHub Actions. Colab gratuito tem limites variáveis de recursos e duração; não há garantia de disponibilidade. Esta configuração não altera cobranças anteriores de nenhuma conta.
+
+**Erro 502 antes da primeira saída Python?** O kernel/servidor não ficou acessível. Desconecte e exclua o ambiente de execução; reconecte uma sessão CPU. Nenhuma célula Python consegue corrigir um proxy indisponível. Não compartilhe URLs com tokens de autenticação.''', "before"),
+        c('''import os, sys, json, uuid
+from datetime import datetime, timezone
 from pathlib import Path
-PROFILE = os.environ.get("ECA_PROFILE", "smoke").strip().lower()
-if PROFILE not in {"smoke", "paper"}: raise ValueError("perfil inválido")
-IN_COLAB = "google.colab" in sys.modules
-RUN_NUMBER = int(globals().get("ECA_RUN_STATE", {}).get("run_number", 0)) + 1
-OUTPUT_DIR = Path(os.environ.get("ECA_OUTPUT_DIR", "/content/eca_qca_results" if IN_COLAB else "eca_qca_results")).resolve()
-print(f"Perfil={PROFILE}; CPU; execução={RUN_NUMBER}")''',"config"),
- m('''## 1. Ambiente
-A célula instala uma matriz única antes de importar qualquer SDK. Se `pip` for interrompido, descarte a VM parcial e recomece.''',"env-md"),
- c('''import importlib.metadata,subprocess
-PINS={"numpy":"2.0.2","qiskit":"2.5.2","qiskit-aer":"0.17.2","PennyLane":"0.45.1","cirq-core":"1.5.0","tensorflow":"2.18.1","tf-keras":"2.18.0","tensorflow-quantum":"0.7.6","pyparsing":"3.2.5","matplotlib":"3.10.6","pandas":"2.2.2","pytest":"8.4.2","nbformat":"5.10.4","nbclient":"0.10.2","psutil":"7.0.0"}
-def version(name):
- try:return importlib.metadata.version(name)
- except importlib.metadata.PackageNotFoundError:return None
-bad={n:(version(n),v) for n,v in PINS.items() if version(n)!=v}
-if bad:
- if not (IN_COLAB or os.environ.get("ECA_ALLOW_INSTALL")=="1"): raise EnvironmentError(f"dependências: {bad}")
- subprocess.run([sys.executable,"-m","pip","install","--disable-pip-version-check","-q",*[f"{n}=={v}" for n,v in PINS.items()]],check=True)
-bad={n:(version(n),v) for n,v in PINS.items() if version(n)!=v}
-if bad: raise EnvironmentError(f"matriz incompatível: {bad}")
-print("Matriz verificada; TensorFlow ainda não foi importado no kernel.")''',"install"),
- m('''## 2. Código versionado
-No Colab, um clone raso é criado uma vez; localmente é usado o checkout atual.''',"source-md"),
- c('''import subprocess
-REPOSITORY="https://github.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS.git"
-PROJECT_ROOT=Path.cwd()
-if not (PROJECT_ROOT/"eca_qca_lab").is_dir():
- PROJECT_ROOT=Path("/content/eca-qca-lab-v3")
- if not (PROJECT_ROOT/".git").is_dir(): subprocess.run(["git","clone","--depth","1","--branch","main",REPOSITORY,str(PROJECT_ROOT)],check=True)
-if str(PROJECT_ROOT) not in sys.path:sys.path.insert(0,str(PROJECT_ROOT))
-print(PROJECT_ROOT)''',"source"),
- c('''from eca_qca_lab.core import *
-from eca_qca_lab.adapters import BACKENDS,statevector
-from eca_qca_lab.experiment import run_experiment
-print({n:version(n) for n in PINS});print(PROFILE_SPECS[PROFILE].to_dict())''',"imports"),
- m('''## 3. TDD antes do experimento
-Numeração, sincronia, reversibilidade, ordenação, três SDKs, TFQ e contratos são verificados antes dos resultados.''',"tdd-md"),
- c('''tests=sorted(str(p) for p in (PROJECT_ROOT/"tests").glob("test_eca_*.py"))
-tested=subprocess.run([sys.executable,"-m","pytest","-q",*tests],cwd=PROJECT_ROOT,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-print(tested.stdout)
-if tested.returncode:raise AssertionError("TDD falhou; experimento bloqueado")''',"tdd"),
- m('''## 4. ECA clássico
-$f_r(l,c,d)=(r>>(4l+2c+d))\\&1$; atualização síncrona e fronteira periódica.''',"classic-md"),
- c('''for rule in (30,60,90):print(rule,"".join(str(row[3]) for row in truth_table(rule)))
-for row in eca_evolve((0,0,1,0,0),30,8):print("".join("█" if b else "·" for b in row))''',"classic"),
- m('''## 5. Incorporação reversível
-`x` é preservado e `F(x)` entra por XOR em `y`; a ordem de qubits é normalizada explicitamente.''',"oracle-md"),
- c('''initial=(0,0,1);ref=oracle_statevector(30,3,initial=initial)
-for backend in BACKENDS:print(backend,fidelity(statevector(backend,30,3,initial=initial),ref))
-print("esperado",eca_step(initial,30))''',"oracle"),
- m('''## 6. Superposição e emaranhamento
-`|+⟩ⁿ|0⟩ⁿ` detecta erros de fase; a entropia mede a partição entrada–saída. TFQ será validado em subprocesso.''',"coherent-md"),
- c('''for rule in (30,60,90):
- ref=oracle_statevector(rule,3,plus_input=True);fs=[fidelity(statevector(b,rule,3,plus_input=True),ref) for b in BACKENDS]
- print(rule,min(fs),von_neumann_entropy_input(ref,3))''',"coherent"),
-m('''## 7. Protocolo completo
-Gates determinísticos e TFQ antecedem ruído. A unidade é `(regra,estado,p,semente)`; IC95% usa bootstrap e a decisão conjunta usa banda Bonferroni–Hoeffding. Warm-up é excluído e tempos não provam vantagem.''',"run-md"),
- c('''OUTPUT_DIR.mkdir(parents=True,exist_ok=True)
-REPORT=run_experiment(OUTPUT_DIR,profile=PROFILE,require_tfq=True,project_root=PROJECT_ROOT)
-if not REPORT["technical_gate_passed"]:raise AssertionError("gate técnico falhou")
-print(REPORT["counts"]);print(REPORT["numerics"])''',"run"),
- c('''import json
-subprocess.run([sys.executable,str(PROJECT_ROOT/"scripts"/"verify_eca_bundle.py"),str(OUTPUT_DIR)],cwd=PROJECT_ROOT,check=True)
-manifest=json.loads((OUTPUT_DIR/"manifest.json").read_text());print("hashes",len(manifest["artifact_sha256"]));print(REPORT["bundle"])
-try:
- from google.colab import files
- files.download(REPORT["bundle"])
-except ImportError:pass''',"artifacts"),
- m('''## 8. Exercícios e gabaritos
-1. Encontre uma colisão de `F₃₀`. 2. Prove que `U_F²=I`. 3. Por que bases não bastam para fase? 4. Para `n=5,p=.1`, calcule BER e sucesso. 5. Por que TFQ não é independente?
 
-<details><summary>Gabaritos</summary>Colisão implica não unitariedade no mesmo espaço; XOR duas vezes cancela; probabilidades apagam fase; BER=.1 e sucesso=.9⁵=.59049; TFQ executa o mesmo circuito Cirq.</details>''',"exercises"),
- c('''ECA_RUN_STATE={"status":"completed","profile":PROFILE,"run_number":RUN_NUMBER,"technical_gate_passed":bool(REPORT["technical_gate_passed"]),"bundle_sha256":REPORT["bundle_sha256"]}
-print("Execução reentrante concluída:",ECA_RUN_STATE)''',"final")]
- assert len(cells)==21 and sum(x["cell_type"]=="code" for x in cells)==11
- return {"cells":cells,"metadata":{"accelerator":"CPU","colab":{"name":NB.name,"provenance":[]},"kernelspec":{"display_name":"Python 3","language":"python","name":"python3"},"language_info":{"name":"python","version":"3.12"}},"nbformat":4,"nbformat_minor":5}
-def text():return json.dumps(build(),ensure_ascii=False,indent=1)+"\n"
-if __name__=="__main__":
- p=argparse.ArgumentParser();p.add_argument("--check",action="store_true");a=p.parse_args();wanted=text()
- if a.check:raise SystemExit(0 if NB.is_file() and NB.read_text()==wanted else 1)
- NB.write_text(wanted,encoding="utf-8");print(NB)
+PROFILE = os.environ.get("ECA_PROFILE", "smoke").strip().lower()  # smoke ou paper
+AUTO_DOWNLOAD = False  # True para baixar automaticamente o ZIP no Colab
+if PROFILE not in {"smoke", "paper"}:
+    raise ValueError("Escolha smoke ou paper antes de executar.")
+IN_COLAB = "google.colab" in sys.modules or bool(os.environ.get("COLAB_RELEASE_TAG"))
+RUN_NUMBER = int(globals().get("ECA_RUN_STATE", {}).get("run_number", 0)) + 1
+RUN_ID = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
+OUTPUT_BASE = Path(os.environ.get("ECA_OUTPUT_DIR", "/content/eca_qca_results" if IN_COLAB else "eca_qca_results")).resolve()
+OUTPUT_DIR = OUTPUT_BASE / PROFILE / RUN_ID
+print(f"Perfil: {PROFILE} | CPU | execução {RUN_NUMBER}\\nPasta exclusiva: {OUTPUT_DIR}")''', "config"),
+        m('''## 1 · Fonte rastreável
+O checkout local é reutilizado; no Colab, um clone separado é criado uma vez. Não se sobrescrevem alterações locais e não se atualiza o código silenciosamente entre execuções. O manifesto registrará o commit e a árvore Git efetivamente utilizados.''', "source-md"),
+        c('''import subprocess
+REPOSITORY = "https://github.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS.git"
+PROJECT_ROOT = Path.cwd()
+if not (PROJECT_ROOT / "scripts/eca_colab_support.py").is_file():
+    PROJECT_ROOT = Path("/content/eca-qca-lab-v32") if IN_COLAB else Path.cwd() / "eca-qca-lab-v32"
+    if not PROJECT_ROOT.exists():
+        subprocess.run(["git", "clone", "--depth", "1", "--branch", "main", REPOSITORY, str(PROJECT_ROOT)], check=True, timeout=180)
+if not (PROJECT_ROOT / "scripts/eca_colab_support.py").is_file():
+    raise FileNotFoundError("Checkout incompleto. Abra a versão atual do notebook ou use uma nova sessão.")
+sys.path.insert(0, str(PROJECT_ROOT / "scripts")) if str(PROJECT_ROOT / "scripts") not in sys.path else None
+print("Código:", PROJECT_ROOT)
+print("Commit:", subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJECT_ROOT, text=True).strip())''', "source"),
+        m('''## 2 · Ambiente isolado, interface leve
+**A instalação não altera o Python do kernel Colab.** As bibliotecas científicas ficam em um ambiente virtual; cada etapa roda em **processo isolado**, usando CPU e um número limitado de threads. TFQ tem um subprocesso próprio.
+
+A matriz validada exige Python **3.11 ou 3.12**; o instalador verifica a disponibilidade antes de instalar. Em outro Python, a execução para com instrução explícita, em vez de tentar uma combinação incompatível. A primeira instalação pode levar vários minutos. Repeti-la reutiliza o ambiente, depois de verificar as versões.''', "env-md"),
+        c('''from eca_colab_support import ensure_environment, cpu_environment, read_pins, run_json, table_html, report_html
+ENV_DIR = (Path("/content") if IN_COLAB else PROJECT_ROOT) / ".venv-eca-v32"
+PYTHON = ensure_environment(PROJECT_ROOT, ENV_DIR, allow_install=IN_COLAB or os.environ.get("ECA_ALLOW_INSTALL") == "1", reuse_current=not IN_COLAB)
+print("Python científico:", PYTHON)
+print("Versões verificadas:", json.dumps(read_pins(PROJECT_ROOT / "requirements-eca-colab.txt"), ensure_ascii=False))
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)''', "install"),
+        c('''from IPython.display import display, HTML, Image, FileLink
+from html import escape
+
+def show_stage(stage):
+    data = run_json(PYTHON, PROJECT_ROOT, "eca_didactic.py",
+                    ["--stage", stage, "--profile", PROFILE, "--output-dir", str(OUTPUT_DIR / "didactic")])
+    display(HTML("<h3>" + escape(data["title"]) + "</h3>" + table_html(data["rows"])))
+    for filename in data["images"]:
+        display(Image(filename=filename, width=1050))
+    if data.get("interpretation"):
+        display(HTML("<p><strong>Como interpretar:</strong> " + escape(data["interpretation"]) + "</p>"))
+    return data
+
+SPEC_VIEW = show_stage("spec")
+print("As ilustrações didáticas ficam separadas dos dados experimentais.")''', "imports"),
+        m('''## 3 · TDD: a execução só avança se os contratos passarem
+Os testes cobrem numeração de Wolfram, sincronia, fronteira periódica, reversibilidade, ordem dos qubits, três SDKs, integração TFQ, estatística e integridade dos artefatos.
+
+**Leia o resultado:** uma falha bloqueia o experimento. Não comente testes nem mude tolerâncias para obter aprovação. O número de testes é calculado na execução, não impresso como resultado fixo.''', "tdd-md"),
+        c('''tests = sorted(str(p) for p in (PROJECT_ROOT / "tests").glob("test_eca_*.py"))
+tested = subprocess.run([PYTHON, "-m", "pytest", "-q", *tests], cwd=PROJECT_ROOT,
+                        env=cpu_environment(), text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=900)
+print(tested.stdout)
+if tested.returncode:
+    raise AssertionError("TDD falhou: corrija a causa antes de coletar resultados.")''', "tdd"),
+        m(r'''## 4 · Observe: de uma regra local ao padrão global
+Cada célula lê a vizinhança **esquerda, centro, direita**; todas são atualizadas simultaneamente:
+
+$$f_r(l,c,d)=\left(r\gg(4l+2c+d)\right)\ \&\ 1.$$
+
+A tabela segue a ordem **111 → 000** de Wolfram. Nos mapas, a posição é horizontal e o tempo cresce para baixo. A fronteira periódica conecta a última célula à primeira.
+
+**Antes de executar:** você espera que 60 e 90 produzam o mesmo padrão a partir de uma única célula ativa?''', "classic-md"),
+        c('''CLASSIC_VIEW = show_stage("classic")''', "classic"),
+        m(r'''## 5 · Modele: preservar informação para poder inverter
+Uma função que envia entradas diferentes à mesma saída não pode, sozinha, ser uma transformação unitária no mesmo espaço. Adicionamos um registro de saída:
+
+$$U_F|x\rangle|y\rangle=|x\rangle|y\oplus F(x)\rangle.$$
+
+**Entrada:** $x$ é preservado. **Saída:** $y$ recebe XOR com $F(x)$. **Inversão:** repetir o mesmo XOR desfaz a operação, logo $U_F^2=I$.
+
+A tabela a seguir usa $x=001$ e $y=000$ e compara três sínteses de circuito com uma referência matemática independente dos SDKs.''', "oracle-md"),
+        c('''ORACLE_VIEW = show_stage("oracle")''', "oracle"),
+        m(r'''## 6 · Investigue: superposição, fase e emaranhamento
+Preparamos $|+\rangle^{\otimes n}|0\rangle^{\otimes n}$, e não apenas estados de base. Isso permite que a comparação de amplitudes detecte erros relativos de fase.
+
+**Como interpretar:** as matrizes abaixo mostram $P(x,y)$; elas não mostram fase. A fidelidade compara os estados completos, descontada a fase global. A entropia de von Neumann quantifica o emaranhamento entre os registros de entrada e saída neste estado puro. Entropia positiva **não implica aceleração**.''', "coherent-md"),
+        c('''COHERENT_VIEW = show_stage("coherent")''', "coherent"),
+        m(r'''## 7 · Meça: ruído, incerteza e custo de simulação
+O fluxo obrigatório é: **bases → coerência → TFQ×Cirq → ruído → microbenchmark**.
+
+| Medida | O que significa | O que não conclui |
+|---|---|---|
+| BER | Fração média de bits alterados | Qualidade de hardware real |
+| Sucesso exato | Fração de saídas inteiramente corretas | Vantagem quântica |
+| IC95% bootstrap | Incerteza por reamostragem de unidades | Probabilidade de a hipótese ser verdadeira |
+| Mediana e IQR | Tempo e dispersão dos simuladores | Aceleração de um computador quântico |
+
+**Modelo de ruído explícito:** bit-flips independentes na saída, amostrados em NumPy. A mesma realização é associada aos três SDKs já validados: são **medidas pareadas de um canal comum**, não três simulações nativas de ruído. Unidade experimental: *(regra, estado, p, semente)*. Não triplique o tamanho amostral pelas etiquetas dos SDKs.
+
+**Previsões:** $\mathrm{BER}=p$ e $P(\mathrm{saída\ exata})=(1-p)^n$. O bootstrap é descritivo; H3/H4 usam bandas simultâneas **Bonferroni–Hoeffding**. Apenas **paper** com todos os gates pode avaliá-las. O perfil smoke não é confirmação de artigo.
+
+O benchmark exclui warm-up, randomiza a ordem e mede construção + execução do simulador, sem custo de importação.''', "run-md"),
+        c('''if (OUTPUT_DIR / "bundle_receipt.json").is_file():
+    receipt = json.loads((OUTPUT_DIR / "bundle_receipt.json").read_text())
+    run_json(PYTHON, PROJECT_ROOT, "verify_eca_bundle.py", [str(OUTPUT_DIR)])
+    REPORT = {**json.loads((OUTPUT_DIR / "validation_report.json").read_text()), **receipt}
+    print("Resultado existente verificado e reutilizado. Executar tudo inicia outra pasta.")
+else:
+    REPORT = run_json(PYTHON, PROJECT_ROOT, "run_eca_experiment.py",
+                      ["--profile", PROFILE, "--output-dir", str(OUTPUT_DIR)], timeout=1200)
+if not REPORT["technical_gate_passed"]:
+    raise AssertionError("Gate técnico falhou.")
+display(HTML(report_html(REPORT)))
+for filename in ("figure_noise.png", "figure_benchmark.png"):
+    display(Image(filename=str(OUTPUT_DIR / filename), width=1050))''', "run"),
+        c('''VERIFICATION = run_json(PYTHON, PROJECT_ROOT, "verify_eca_bundle.py", [REPORT["bundle"]])
+display(HTML("<h3>Pacote íntegro</h3>" + table_html([VERIFICATION])))
+print("ZIP:", REPORT["bundle"])
+print("SHA-256 do ZIP:", REPORT["bundle_sha256"])
+print("Ilustrações didáticas:", OUTPUT_DIR / "didactic")
+if IN_COLAB:
+    print("Baixe o ZIP pelo painel Arquivos (pasta acima), ou ative AUTO_DOWNLOAD e reexecute esta célula.")
+    if AUTO_DOWNLOAD:
+        from google.colab import files
+        files.download(REPORT["bundle"])
+else:
+    display(FileLink(REPORT["bundle"]))
+print("SHA-256 verifica integridade; não prova autoria nem validade científica.")''', "artifacts"),
+        m(r'''## 8 · Aprenda, explique, reproduza
+
+### Exercícios progressivos
+
+1. **Ler:** obtenha os oito bits da regra 30 na ordem 111 → 000.
+2. **Aplicar:** para a regra 90 e o estado periódico 001, calcule a próxima linha.
+3. **Demonstrar:** encontre uma colisão da regra 30 com três células; explique por que preservar $x$ resolve a reversibilidade.
+4. **Analisar:** dois vetores com as mesmas probabilidades podem ter fidelidade menor que 1? Dê um exemplo.
+5. **Quantificar:** para $n=5$ e $p=0{,}1$, calcule BER e sucesso exato teóricos.
+6. **Auditar:** os três registros de um mesmo canal/estado/semente são três réplicas independentes? Como checar um ZIP?
+7. **Pesquisar:** o que falta para estudar ruído por porta em hardware real?
+
+<details>
+<summary><strong>Gabarito comentado — abra depois de tentar</strong></summary>
+
+1. **00011110**: essa sequência binária corresponde ao inteiro 30.
+2. **110**: na regra 90, a nova célula é esquerda XOR direita.
+3. **000 e 111 vão para 000**. O mapeamento simples colide; no oráculo, as entradas continuam distinguíveis em x. Aplicar XOR duas vezes cancela F(x).
+4. **Sim:** (|0⟩+|1⟩)/√2 e (|0⟩−|1⟩)/√2 têm as mesmas probabilidades e fidelidade zero.
+5. **BER = 0,1; sucesso = 0,9⁵ = 0,59049.** São métricas diferentes.
+6. **Não:** são observações pareadas do mesmo fluxo aleatório. Rode o verificador e confira os hashes. Integridade não substitui revisão metodológica.
+7. **Um protocolo novo:** localização dos canais, taxas calibradas, backend físico, transpilações, orçamento e hipóteses apropriadas. O modelo de saída deste notebook não responde a essa pergunta.
+
+</details>
+
+### Limites e próximo passo científico
+
+Este laboratório fornece um **baseline reprodutível**, não comprova novidade bibliográfica nem garante Qualis A1. Repetir paper com sementes congeladas é reprodução técnica. Novas hipóteses exigem protocolo, análise da literatura, planejamento amostral e novos dados antes de qualquer conclusão.
+
+[Especificação SDD](https://github.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/blob/main/docs/SDD.md) · [Protocolo](https://github.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/blob/main/docs/PROTOCOL.md) · [Plano do artigo](https://github.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/blob/main/docs/ARTICLE_PLAN.md)
+
+**Como citar:** use o arquivo CITATION.cff e o commit do manifesto. Autoria do projeto: **MARCELO CLARO LARANJEIRA**, Professor de Geografia e Pedagogo.''', "exercises"),
+        c('''ECA_RUN_STATE = {"status": "completed", "profile": PROFILE, "run_number": RUN_NUMBER,
+                 "run_id": RUN_ID, "output_dir": str(OUTPUT_DIR),
+                 "technical_gate_passed": bool(REPORT["technical_gate_passed"]),
+                 "bundle_sha256": REPORT["bundle_sha256"]}
+print("Execução concluída:", json.dumps(ECA_RUN_STATE, ensure_ascii=False, indent=2))
+print("Você pode repetir Executar tudo: uma nova pasta preservará esta execução.")''', "final"),
+    ]
+    assert len(cells) == 21 and sum(x["cell_type"] == "code" for x in cells) == 11
+    return {"cells": cells, "metadata": {
+        "accelerator": "CPU", "colab": {"name": NB.name, "provenance": []},
+        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+        "language_info": {"name": "python", "version": "3.12"}},
+        "nbformat": 4, "nbformat_minor": 5}
+
+
+def text():
+    return json.dumps(build(), ensure_ascii=False, indent=1) + "\n"
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    wanted = text()
+    if args.check:
+        raise SystemExit(0 if NB.is_file() and NB.read_text() == wanted else 1)
+    NB.write_text(wanted, encoding="utf-8")
+    print(NB)

@@ -2,7 +2,7 @@
 
 ## Lacuna e contribuição
 
-A literatura e os tutoriais nem sempre separam: atualização ECA irreversível; incorporação unitária com ancila; replicação entre SDKs; e integração TFQ–Cirq. O artigo propõe uma metodologia aberta com convenção explícita de qubits, bases exaustivas, superposição sensível a fase, unidade experimental independente, gate de evidência e pacote auditável — sem alegar vantagem quântica.
+A lacuna candidata é a falta de separação didática e operacional entre atualização ECA irreversível, incorporação unitária com ancila, implementações por SDK e integração TFQ–Cirq. **A existência e a novidade dessa lacuna ainda exigem revisão bibliográfica sistematizada; o software não a demonstra.** O laboratório oferece um baseline aberto com convenção explícita de qubits, enumeração de entradas de base com saída inicialmente zero, superposição sensível a fase, unidades de ruído pareadas, gates e pacote auditável — sem alegar vantagem quântica.
 
 ## Perguntas de pesquisa
 
@@ -16,7 +16,7 @@ A literatura e os tutoriais nem sempre separam: atualização ECA irreversível;
 
 ## Plano confirmatório
 
-Congelar commit, `PROTOCOL.md`, perfil `paper`, versões e análise antes da coleta. Unidade de ruído: `(regra, estado, p, semente-base)`. Os SDKs usam números aleatórios comuns dentro da unidade pareada e fluxo SHA-256 distinto entre unidades. Shots estimam a distribuição, não são réplicas.
+Congelar commit, `PROTOCOL.md`, perfil `paper`, versões e análise antes da coleta. Unidade de ruído: `(regra, estado, p, semente-base)`. Uma realização NumPy é compartilhada pelas etiquetas dos SDKs; não se executam canais nativos independentes. Shots estimam a distribuição, não são réplicas de hardware. A versão 3.2 reproduz o desenho existente com correções e transparência adicional; não constitui confirmação independente nem justifica selecionar hipóteses após observar resultados.
 
 RQ1–RQ3 são verificações determinísticas, sem p-valores. Em RQ4, agregar por unidade, relatar IC95% bootstrap e decidir compatibilidade por banda simultânea Bonferroni–Hoeffding com `α_F=0,05`. Não se exige que a teoria caia em todos os IC95% pontuais, pois isso inflaria o falso bloqueio familiar. Em RQ5, não remover outliers; excluir apenas o warm-up pré-declarado. Mudança pós-registro exige emenda datada, sementes disjuntas e nova coleta.
 

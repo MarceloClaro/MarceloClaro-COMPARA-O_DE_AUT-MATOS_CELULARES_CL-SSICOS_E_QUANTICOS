@@ -38,7 +38,7 @@ Isso é uma incorporação reversível de uma etapa ECA, não uma QCA física in
 | Frameworks | Três sínteses independentes: Qiskit, PennyLane e Cirq |
 | TFQ | Expectativas `⟨Zᵢ⟩` dos circuitos Cirq em processo isolado |
 | Ruído | Bit-flip lógico no registro de saída; BER e sucesso exato |
-| Estatística | Unidades por regra/estado/p/semente; IC95% bootstrap |
+| Estatística | Unidades independentes, IC95% bootstrap e banda simultânea Bonferroni–Hoeffding |
 | Desempenho | Warm-up excluído; ordem randomizada; mediana e IQR |
 | Auditoria | Manifesto, CSVs, figuras 300 dpi, ZIP e SHA-256 |
 
@@ -93,8 +93,10 @@ python scripts/verify_eca_bundle.py eca_qca_results
 - [Plano do artigo e lacuna](docs/ARTICLE_PLAN.md)
 - [Relatório de validação](docs/ECA_VALIDATION.md)
 
+Validação v3.1: **425 testes aprovados**, execução integral reentrante e perfil confirmatório `paper` aprovado em H1–H4 com 840 unidades independentes de ruído. O protocolo registra a emenda, o commit congelado e a separação entre piloto e confirmação.
+
 Rigor aumenta a publicabilidade, mas não garante Qualis A1 ou aceite. A área CAPES, o ciclo de avaliação e o periódico devem ser verificados na submissão.
 
-Referências centrais: Wolfram (1983), Schumacher–Werner (2004), Pérez-Delgado–Cheung (2007), Qiskit, PennyLane e TFQ. DOIs e limites estão no protocolo e no SDD.
+Referências centrais: Wolfram (1983), Schumacher–Werner (2004), Pérez-Delgado–Cheung (2007), Qiskit, PennyLane e TFQ. DOIs, fontes e limites estão no protocolo e no SDD.
 
 Código sob [GPL-3.0](LICENSE); citação em [CITATION.cff](CITATION.cff).

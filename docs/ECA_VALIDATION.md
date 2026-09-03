@@ -1,12 +1,48 @@
 # Validação do laboratório ECA/QCA v3.1
 
-## Estado antes da coleta confirmatória
+Data da validação: **2026-09-03**.
 
-O código, o perfil `paper`, a Emenda 1, as cinco novas sementes e a regra simultânea Bonferroni–Hoeffding foram congelados antes da execução confirmatória definitiva. Os resultados da execução-piloto não serão reutilizados.
+## Proveniência confirmatória
 
-Este arquivo será completado em um commit posterior à coleta com os resultados da árvore congelada. Critérios: regras 30/60/90; involução de `U_F`; bases exaustivas; fidelidade `≥1−2×10⁻⁷`; TFQ×Cirq `≤2×10⁻⁵`; sementes independentes; dez artefatos SHA-256; notebook de 21 células/11 códigos e execução reentrante.
+O código, o perfil `paper`, a Emenda 1, as cinco novas sementes e a regra simultânea Bonferroni–Hoeffding foram congelados no commit `ae8e4ab0cc046490803b7337d95d5b02ab544787` antes da execução confirmatória definitiva. O manifesto registra esse commit, a branch `main` e `dirty=false`. Os resultados e sementes da execução-piloto não foram reutilizados.
 
-## Limitações pré-declaradas
+Sementes confirmatórias: `104729`, `130363`, `155921`, `181081`, `206369`. Critérios: regras 30/60/90; involução de `U_F`; bases exaustivas; fidelidade `≥1−2×10⁻⁷`; TFQ×Cirq `≤2×10⁻⁵`; sementes independentes; dez artefatos SHA-256; notebook de 21 células/11 códigos e execução reentrante.
+
+## Resultado
+
+- TDD: **425 testes aprovados** em 3,31 s.
+- `smoke`: portão técnico aprovado; H1 e H2 aprovadas; H3/H4 corretamente não avaliadas nesse perfil.
+- `paper`: portão técnico aprovado; **H1, H2, H3 e H4 aprovadas**.
+- Auditoria: **10/10 artefatos** verificados por SHA-256 em cada perfil.
+- TFQ disponível e validado como integração TensorFlow–Cirq, não como quarto backend independente.
+
+| Métrica | `smoke` | `paper` |
+|---|---:|---:|
+| Paridades em base computacional | 72 | 288 |
+| Comparações de vetores de estado | 81 | 297 |
+| Verificações de estados coerentes | 9 | 9 |
+| Observáveis TFQ×Cirq | 81 | 495 |
+| Registros de ruído | 108 | 2.520 |
+| Unidades independentes de ruído | 36 | 840 |
+| Registros de benchmark | 36 | 360 |
+| Fidelidade mínima entre frameworks | 0,9999999999999998 | 0,9999999999999999 |
+| Maior erro de probabilidade em base | 5,77 × 10⁻¹⁵ | 9,77 × 10⁻¹⁵ |
+| Maior erro alinhado por fase | 2,89 × 10⁻¹⁵ | 4,88 × 10⁻¹⁵ |
+| Maior erro de observável TFQ | 1,20 × 10⁻¹³ | 1,23 × 10⁻¹³ |
+
+No perfil `paper`, o maior desvio BER foi `6,76×10⁻⁴`, ou 29,65% da respectiva meia largura simultânea; o maior desvio de sucesso exato foi `2,86×10⁻³`, ou 56,14% da meia largura. Portanto, todos os 126 cheques planejados ficaram dentro das bandas com `α_F=0,05`. Isso sustenta compatibilidade na resolução amostral declarada, não igualdade matemática.
+
+Hashes dos bundles: `361aac11f6de4ccaa7e4400abf3be3384b4898259571ec3ac96b8ebcccf5df18` (`smoke`) e `4b273e6a490dfec56d87a892f3f18eca6e53295c75945bb417660afba9d7800b` (`paper`).
+
+## Notebook e ambiente
+
+- Estrutura: **21 células**, sendo **11 de código**, com projeto, autoria e ORCID.
+- Duas execuções integrais consecutivas no mesmo processo concluíram sem `TEST_OPENED`: 13,34 s e 10,28 s.
+- Cada execução interna repetiu os 425 testes; pico de memória residente: **482.272 KiB** (aprox. 471 MiB).
+- Matriz: Python 3.12; Qiskit 2.5.2; Qiskit Aer 0.17.2; PennyLane 0.45.1; Cirq Core 1.5.0; TensorFlow 2.18.1; TF-Keras 2.18.0; TensorFlow Quantum 0.7.6.
+- Execução em CPU e TFQ isolado em subprocesso, reduzindo conflitos de ABI e estado residual no kernel do Colab.
+
+## Limitações
 
 - `U_F` não é uma QCA física infinita completa.
 - TFQ reutiliza Cirq.

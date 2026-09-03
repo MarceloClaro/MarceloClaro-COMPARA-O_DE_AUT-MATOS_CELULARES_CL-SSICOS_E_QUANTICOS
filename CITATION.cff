@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "Se este laboratório apoiar sua pesquisa, cite o software e o commit utilizado."
+type: software
+title: "Laboratório ECA/QCA multiframework"
+version: 3.1.0
+date-released: 2026-09-03
+authors:
+  - family-names: Laranjeira
+    given-names: "Marcelo Claro"
+    orcid: "https://orcid.org/0000-0001-8996-2887"
+repository-code: "https://github.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS"
+license: GPL-3.0-only
+keywords: [cellular automata, quantum cellular automata, reversible computing, Qiskit, PennyLane, Cirq, TensorFlow Quantum]

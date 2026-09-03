@@ -1,150 +1,100 @@
-# Autômatos celulares clássicos e quânticos
+# Laboratório ECA/QCA multiframework
 
-Documentação científico-didática de um experimento multiframework para comparar autômatos celulares elementares (ECA) com uma **incorporação quântica reversível** das regras 30, 60 e 90 em Qiskit, PennyLane, Cirq e TensorFlow Quantum (TFQ).
+[![Abrir no Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/blob/main/COMPARA%C3%87%C3%83O_DE_AUT%C3%94MATOS_CELULARES_CL%C3%81SSICOS_E_QUANTICOS_Performance%2C_robustez_ao_ru%C3%ADdo_e_aplica%C3%A7%C3%B5es_.ipynb)
+[![Validação](https://github.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/actions/workflows/eca-confirmatory.yml/badge.svg)](https://github.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/actions/workflows/eca-confirmatory.yml)
 
-> O objetivo não é demonstrar vantagem, supremacia ou aceleração quântica. Em simuladores clássicos, a comparação deve verificar correção semântica, reprodutibilidade, emaranhamento, robustez controlada ao ruído e custo das pilhas de software.
+Experimento científico-didático que compara as regras ECA 30, 60 e 90 com sua incorporação reversível em **Qiskit, PennyLane e Cirq**. O **TensorFlow Quantum** é tratado corretamente como integração TensorFlow–Cirq, não como quarta implementação independente.
 
-## Estado deste envio
+> Não se alega vantagem, supremacia ou aceleração quântica. Os tempos são microbenchmarks de simuladores clássicos.
 
-Este envio adiciona a documentação da versão 2.0:
+## Autor
 
-- [especificação SDD e matriz de rastreabilidade](docs/SDD.md);
-- [protocolo científico confirmatório](docs/PROTOCOL.md);
-- [classificador Iris híbrido estável para Colab](Classificador_Qu%C3%A2ntico_H%C3%ADbrido_de_Alta_Performance_para_Classifica%C3%A7%C3%A3o_de_Dados_Iris_%28Otimizado%29.ipynb);
-- [gerador determinístico do notebook Iris](scripts/build_iris_colab.py);
-- [validador executável célula a célula](scripts/validate_iris_notebook.py);
-- [relatório e matriz de validação do classificador Iris](docs/IRIS_VALIDATION.md);
-- [testes de contrato TDD do notebook](tests/test_iris_notebook.py);
-- este README com escopo, compatibilidade e limites de interpretação.
+### Marcelo Claro Laranjeira — [@MarceloClaro](https://github.com/MarceloClaro)
 
-O notebook Iris foi reconstruído após a versão cumulativa exceder os recursos do Colab. Os demais notebooks existentes na raiz são preservados como material histórico. Eles não devem ser tratados como implementação confirmatória da especificação 2.0 sem que os respectivos gates TDD e de evidência tenham sido executados.
+Professor de Geografia e Pedagogo, pesquisador em cultura maker, educação e tecnologias computacionais.
 
-## Classificador Iris: correção para o Colab
+- Crateús, Ceará, Brasil
+- [GeoMaker](https://bit.ly/geomaker)
+- [ORCID 0000-0001-8996-2887](https://orcid.org/0000-0001-8996-2887)
+- [Instagram @marceloclaro.geomaker](https://www.instagram.com/marceloclaro.geomaker/)
+- [Seguidores](https://github.com/MarceloClaro?tab=followers) · [Seguindo](https://github.com/MarceloClaro?tab=following)
 
-[![Abrir o classificador Iris no Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/blob/main/Classificador_Qu%C3%A2ntico_H%C3%ADbrido_de_Alta_Performance_para_Classifica%C3%A7%C3%A3o_de_Dados_Iris_%28Otimizado%29.ipynb)
+As contagens sociais mudam; os links são preferíveis a números estáticos em metadados científicos.
 
-A versão anterior repetia todo o programa em células cumulativas e criava um novo modelo Keras dentro de cada avaliação COBYLA. Isso mantinha centenas de grafos e camadas na memória até o runtime ser encerrado. A versão atual:
+## Modelo correto
 
-- valida faixas de versão, instala somente dependências ausentes/incompatíveis e não substitui o TensorFlow do Colab;
-- reutiliza um único simulador Cirq e não cria modelos Keras dentro de loops;
-- calcula corretamente quatro expectativas de Pauli-Z;
-- separa treino, validação e teste em `60/20/20`, sem escolher arquitetura no teste;
-- exige `success=True` do COBYLA: meta operacional no `smoke` e convergência da região de confiança no `full`;
-- executa a robustez somente sobre a validação, com sementes independentes por réplica, antes de abrir o teste;
-- permite **Executar tudo** novamente no mesmo kernel, limpando objetos transitórios e registrando a nova passagem;
-- torna a célula final idempotente: uma repetição isolada usa cache e não reabre o teste;
-- compara o pipeline híbrido com uma regressão logística clássica pré-especificada;
-- oferece os perfis `smoke` e `full`, testes TDD e um ZIP de membros fechados com hashes SHA-256.
+Como uma regra ECA pode ser irreversível, `|x⟩→|F(x)⟩` não é unitária em geral. O laboratório preserva a entrada:
 
-Abra o link, selecione o runtime padrão **CPU / sem acelerador**, mantenha `PROFILE = "smoke"` e clique em **Ambiente de execução → Executar tudo**. Para a execução completa, selecione `full` e use **Executar tudo** novamente. Não é necessário reiniciar o kernel: o manifesto distingue a primeira confirmação das réplicas técnicas. Erros HTTP `502` do host `prod.colab.dev` são falhas da máquina virtual do Colab anteriores à execução do código; nesse caso, encerre a sessão indisponível e conecte uma nova sessão CPU.
+$$U_F|x\rangle|y\rangle=|x\rangle|y\oplus F(x)\rangle.$$
 
-Para uma auditoria automática fora do Colab, o comando abaixo executa as 11 células duas vezes no mesmo kernel, mede tempo/memória e verifica o cache da confirmação:
+Isso é uma incorporação reversível de uma etapa ECA, não uma QCA física infinita completa.
 
-```bash
-python scripts/validate_iris_notebook.py --profile smoke --repeat-run-all --allow-install --report iris_smoke_report.json
-```
+## Implementação e evidência
 
-## Correção conceitual central
-
-Regras como a 30 são irreversíveis: estados de entrada diferentes podem produzir a mesma saída. Portanto, a transformação direta `|x〉 → |F(x)〉` não pode, em geral, ser unitária. O experimento especifica a incorporação reversível
-
-\[
-U_F|x\rangle|y\rangle=|x\rangle|y\oplus F(x)\rangle.
-\]
-
-Com `y=0`, o segundo registrador contém a atualização clássica, enquanto o primeiro preserva a informação necessária à reversibilidade. Esse circuito representa uma atualização ECA incorporada em uma unitária; não é, sem qualificações adicionais, uma QCA física autônoma completa.
-
-## Arquitetura proposta
-
-```mermaid
-flowchart TD
-    S["Especificação SDD"] --> C["Referência ECA"]
-    S --> U["Oráculo reversível"]
-    U --> Q["Qiskit"]
-    U --> P["PennyLane"]
-    U --> R["Cirq"]
-    R --> T["TensorFlow Quantum"]
-    C --> V["Gate de evidência"]
-    Q --> V
-    P --> V
-    R --> V
-    T --> V
-```
-
-TFQ recebe circuitos Cirq. Sua concordância com Cirq valida serialização, execução e integração híbrida, mas não constitui uma quarta replicação algorítmica independente.
-
-## Desenho experimental
-
-| Eixo | Especificação |
+| Eixo | Conteúdo |
 |---|---|
-| Regras | 30, 60 e 90 |
-| Fronteira | Periódica e idêntica em todas as rotas |
-| Correção | Todos os `2ⁿ` estados de base do tamanho estudado |
-| Paridade | Probabilidades e fidelidade Qiskit × PennyLane × Cirq |
-| Regime coerente | Entrada `|+〉ⁿ|0〉ⁿ` e entropia entrada–saída |
-| Ruído | Canal bit-flip independente somente no registro de saída |
-| Desfechos | BER e probabilidade do bitstring completo correto |
-| Incerteza | Réplicas por estado e semente; IC95% bootstrap |
-| Desempenho | Warm-up separado; mediana e IQR; apenas simuladores |
+| Clássico | Regras 30, 60 e 90; atualização síncrona; fronteira periódica |
+| Ideal | Enumeração de bases, superposição, fidelidade, fase e entropia `x|y` |
+| Frameworks | Três sínteses independentes: Qiskit, PennyLane e Cirq |
+| TFQ | Expectativas `⟨Zᵢ⟩` dos circuitos Cirq em processo isolado |
+| Ruído | Bit-flip lógico no registro de saída; BER e sucesso exato |
+| Estatística | Unidades por regra/estado/p/semente; IC95% bootstrap |
+| Desempenho | Warm-up excluído; ordem randomizada; mediana e IQR |
+| Auditoria | Manifesto, CSVs, figuras 300 dpi, ZIP e SHA-256 |
 
-O gate de evidência exige primeiro equivalência clássica, paridade entre SDKs e integração TFQ–Cirq. Resultados de ruído, emaranhamento ou tempo não devem sustentar conclusões confirmatórias se esses gates falharem.
+O gate obrigatório é: ECA clássico → bases nos três SDKs → coerência → TFQ×Cirq → ruído → microbenchmark. Shots não são tratados como réplicas independentes.
 
-## Perfis pré-especificados
+## Executar no Colab
+
+1. Abra o badge.
+2. Selecione **CPU / sem acelerador**.
+3. Mantenha `PROFILE="smoke"`.
+4. Clique em **Ambiente de execução → Executar tudo**.
+
+O notebook tem 21 células, 11 de código curto, e é reentrante. Não existe o antigo bloqueio `TEST_OPENED`; repetir **Executar tudo** no mesmo kernel é válido. TensorFlow/TFQ roda em subprocesso, reduzindo estado residual e memória no kernel principal.
+
+### As duas ressalvas solucionadas
+
+- HTTP `502` em `prod.colab.dev/api/kernelspecs` acontece antes do Python: é falha da VM/proxy do Colab. Desconecte a sessão, reconecte uma VM CPU e execute desde o início.
+- Se `pip` for interrompido, descarte a VM parcialmente instalada e reconecte. Não continue células fora de ordem.
+
+## Perfis congelados
 
 | Parâmetro | `smoke` | `paper` |
 |---|---:|---:|
 | Células | 3 | 5 |
-| Estados na validação determinística | 8 | 32 |
-| Estados pré-fixados no ensaio de ruído | 2 | 8 |
-| Shots | 512 | 4.096 |
-| Sementes-base | 2 | 5 |
+| Estados determinísticos | 8 | 32 |
+| Estados de ruído | 2 | 8 |
 | Níveis de bit-flip | 3 | 7 |
-| Reamostragens bootstrap | 1.000 | 10.000 |
+| Sementes-base | 2 | 5 |
+| Shots | 512 | 4.096 |
+| Bootstrap | 1.000 | 10.000 |
 
-O perfil `smoke` serve para diagnóstico. O perfil `paper` é a configuração confirmatória e deve ser escolhido antes de observar os resultados.
+`smoke` é diagnóstico. Apenas `paper`, escolhido antes dos resultados e com gates aprovados, pode decidir H3/H4.
 
-## Matriz de compatibilidade
+## Ambiente unificado
 
-| Componente | Versão unificada | Motivo |
-|---|---:|---|
-| Python | 3.12 | Runtime-alvo do Google Colab |
-| Qiskit | 2.5.2 | SDK de circuitos |
-| Qiskit Aer | 0.17.2 | Simulação e canal de ruído |
-| PennyLane | 0.45.1 | Implementação independente |
-| Cirq Core | 1.5.0 | Versão fixada por TFQ 0.7.6 |
-| TensorFlow | 2.18.1 | Combinação compatível testada |
-| TF-Keras | 2.18.0 | TFQ exige a linha legada `<2.19` |
-| TensorFlow Quantum | 0.7.6 | Integração TensorFlow–Cirq |
+NumPy 2.0.2; Qiskit 2.5.2; Aer 0.17.2; PennyLane 0.45.1; Cirq Core 1.5.0; TensorFlow 2.18.1; TF-Keras 2.18.0; TFQ 0.7.6; pyparsing 3.2.5. TFQ fixa Cirq 1.5.0 e exige a linha legada TF-Keras; `TF_USE_LEGACY_KERAS=1` é definido antes do import.
 
-Não se deve atualizar Cirq isoladamente no mesmo runtime: TFQ 0.7.6 declara `cirq-core==1.5.0`. Também é necessário definir `TF_USE_LEGACY_KERAS=1` antes do primeiro import de TensorFlow ou TFQ.
+## Execução local
 
-## Reprodutibilidade exigida
+```bash
+python -m venv .venv && source .venv/bin/activate
+python -m pip install -r requirements-eca-colab.txt
+python -m pytest -q tests/test_eca_*.py
+python scripts/run_eca_experiment.py --profile smoke --output-dir eca_qca_results
+python scripts/verify_eca_bundle.py eca_qca_results
+```
 
-- parâmetros e hipóteses definidos antes da coleta;
-- sementes-base explícitas e fluxo de simulador derivado por unidade experimental;
-- versões importadas, commit, branch e estado do worktree registrados;
-- CSVs brutos preservados antes de qualquer agregação;
-- figuras em 300 dpi e hashes SHA-256;
-- nenhuma credencial ou token IBM em notebook compartilhado;
-- execução dos testes antes da interpretação dos resultados.
+## Pesquisa e artigo
 
-## Limites de interpretação
+- [SDD e rastreabilidade](docs/SDD.md)
+- [Protocolo confirmatório](docs/PROTOCOL.md)
+- [Plano do artigo e lacuna](docs/ARTICLE_PLAN.md)
+- [Relatório de validação](docs/ECA_VALIDATION.md)
 
-- `U_F` é uma incorporação reversível de uma atualização ECA, não uma QCA infinita completa.
-- TFQ reutiliza Cirq e não é uma replicação independente.
-- Redes pequenas e simulação ideal não generalizam automaticamente para QPUs.
-- Shots da mesma execução não substituem réplicas experimentais.
-- Tempos dos simuladores não demonstram vantagem quântica.
+Rigor aumenta a publicabilidade, mas não garante Qualis A1 ou aceite. A área CAPES, o ciclo de avaliação e o periódico devem ser verificados na submissão.
 
-## Referências essenciais
+Referências centrais: Wolfram (1983), Schumacher–Werner (2004), Pérez-Delgado–Cheung (2007), Qiskit, PennyLane e TFQ. DOIs e limites estão no protocolo e no SDD.
 
-- WOLFRAM, S. Statistical mechanics of cellular automata. *Reviews of Modern Physics*, v. 55, p. 601–644, 1983. DOI: [10.1103/RevModPhys.55.601](https://doi.org/10.1103/RevModPhys.55.601).
-- SCHUMACHER, B.; WERNER, R. F. Reversible quantum cellular automata. 2004. DOI: [10.48550/arXiv.quant-ph/0405174](https://doi.org/10.48550/arXiv.quant-ph/0405174).
-- PÉREZ-DELGADO, C. A.; CHEUNG, D. Local unitary quantum cellular automata. *Physical Review A*, v. 76, 032320, 2007. DOI: [10.1103/PhysRevA.76.032320](https://doi.org/10.1103/PhysRevA.76.032320).
-- JAVADI-ABHARI, A. et al. Quantum computing with Qiskit. 2024. DOI: [10.48550/arXiv.2405.08810](https://doi.org/10.48550/arXiv.2405.08810).
-- BERGHOLM, V. et al. PennyLane: automatic differentiation of hybrid quantum-classical computations. 2018. DOI: [10.48550/arXiv.1811.04968](https://doi.org/10.48550/arXiv.1811.04968).
-- BROUGHTON, M. et al. TensorFlow Quantum: a software framework for quantum machine learning. 2020. DOI: [10.48550/arXiv.2003.02989](https://doi.org/10.48550/arXiv.2003.02989).
-
-## Licença
-
-Apache License 2.0. Consulte [LICENSE](LICENSE).
+Código sob [GPL-3.0](LICENSE); citação em [CITATION.cff](CITATION.cff).

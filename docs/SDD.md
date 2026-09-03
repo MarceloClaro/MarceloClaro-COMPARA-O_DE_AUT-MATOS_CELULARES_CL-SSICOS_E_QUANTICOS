@@ -2,7 +2,7 @@
 
 ## 1. Finalidade e escopo
 
-Este documento especifica a versão 2.0 do experimento. O sistema deve comparar uma referência clássica de autômatos celulares elementares (ECA) com a incorporação reversível da mesma função booleana em circuitos Qiskit, PennyLane e Cirq, além de validar a execução híbrida via TensorFlow Quantum.
+Este documento especifica a versão 3.1 do experimento. O sistema compara uma referência ECA com a incorporação reversível em Qiskit, PennyLane e Cirq e valida TFQ–Cirq em processo isolado e reentrante.
 
 Fora de escopo: alegar vantagem quântica; executar em QPU sem protocolo próprio; tratar uma regra clássica irreversível como unitária no mesmo registrador; confundir TFQ com um SDK de circuito independente de Cirq.
 
@@ -73,6 +73,8 @@ flowchart TD
 | NFR-004 | Didática progressiva | Tabela booleana → função clássica → circuito → medição → inferência |
 | NFR-005 | Desempenho interpretável | Warm-up fora da medição; mediana e IQR; sem linguagem de vantagem quântica |
 | NFR-006 | Rastreabilidade | Cada requisito crítico possui ao menos um teste automatizado |
+| NFR-007 | Reentrância | Repetir Executar tudo não falha por estado residual |
+| NFR-008 | Isolamento | TensorFlow/TFQ não permanecem no kernel principal |
 
 ## 6. Contratos dos dados
 
@@ -134,3 +136,5 @@ Se qualquer etapa falhar, os resultados posteriores são exploratórios e não d
 - resultados brutos, agregados e hashes são gerados;
 - nenhuma conclusão excede o domínio testado;
 - o notebook pode ser reproduzido em um runtime Colab limpo.
+- o notebook pode ser repetido sem o bloqueio `TEST_OPENED`;
+- erros HTTP 502 anteriores ao kernel são classificados como infraestrutura.

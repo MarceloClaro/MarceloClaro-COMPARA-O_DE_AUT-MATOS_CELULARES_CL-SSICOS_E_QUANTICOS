@@ -1,0 +1,21 @@
+name: ECA confirmatory validation
+on:
+  push: {branches: [main]}
+  pull_request:
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: python -m pip install -r requirements-eca-colab.txt
+      - run: python scripts/build_eca_colab.py --check
+      - run: python -m pytest -q tests/test_eca_*.py
+        env: {TF_USE_LEGACY_KERAS: "1", CUDA_VISIBLE_DEVICES: "-1"}
+      - run: python scripts/run_eca_experiment.py --profile smoke --output-dir eca_qca_results
+        env: {TF_USE_LEGACY_KERAS: "1", CUDA_VISIBLE_DEVICES: "-1"}
+      - run: python scripts/verify_eca_bundle.py eca_qca_results

@@ -1,0 +1,17 @@
+[build-system]
+requires=["setuptools>=75"]
+build-backend="setuptools.build_meta"
+[project]
+name="eca-qca-lab"
+version="3.1.0"
+description="Laboratório reprodutível ECA/QCA"
+readme="README.md"
+requires-python=">=3.11"
+license={text="GPL-3.0-only"}
+authors=[{name="Marcelo Claro Laranjeira"}]
+dependencies=["numpy>=2.0,<2.1"]
+[tool.setuptools.packages.find]
+include=["eca_qca_lab*"]
+[tool.pytest.ini_options]
+testpaths=["tests"]
+markers=["integration: requer Qiskit, PennyLane e Cirq", "tfq: requer TensorFlow Quantum"]

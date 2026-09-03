@@ -4,7 +4,7 @@ Data da validação: **2026-09-03**.
 
 ## Proveniência confirmatória
 
-O código, o perfil `paper`, a Emenda 1, as cinco novas sementes e a regra simultânea Bonferroni–Hoeffding foram congelados no commit `ae8e4ab0cc046490803b7337d95d5b02ab544787` antes da execução confirmatória definitiva. O manifesto registra esse commit, a branch `main` e `dirty=false`. Os resultados e sementes da execução-piloto não foram reutilizados.
+O código, o perfil `paper`, a Emenda 1, as cinco novas sementes e a regra simultânea Bonferroni–Hoeffding foram congelados localmente no commit `ae8e4ab0cc046490803b7337d95d5b02ab544787`, árvore Git `610f4ba6eaa3ee44a2987a3b1d222fcc059b98f6`, antes da execução confirmatória definitiva. O manifesto registra esse commit, a branch `main` e `dirty=false`. A mesma árvore foi publicada no GitHub como commit `2fafcec2f454943a4c82c636cbc2c28fcd2110f6`, seguida do relatório pós-coleta em `7f00b2f387b8aeb6d10b272ab71d1316e0767dfc`. Os resultados e sementes da execução-piloto não foram reutilizados.
 
 Sementes confirmatórias: `104729`, `130363`, `155921`, `181081`, `206369`. Critérios: regras 30/60/90; involução de `U_F`; bases exaustivas; fidelidade `≥1−2×10⁻⁷`; TFQ×Cirq `≤2×10⁻⁵`; sementes independentes; dez artefatos SHA-256; notebook de 21 células/11 códigos e execução reentrante.
 

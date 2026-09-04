@@ -71,7 +71,7 @@ flowchart TD
 |---|---|---|
 | NFR-001 | Reprodutibilidade | Parâmetros, sementes, versões, commit e estado do worktree registrados |
 | NFR-002 | Falha antecipada | Estados, regras, fronteiras, shots e probabilidades inválidos geram exceção explícita |
-| NFR-003 | Ambiente-alvo Colab/local | Python 3.11/3.12, CPU, venv isolado e nenhuma API paga obrigatória; disponibilidade do Colab fora do escopo |
+| NFR-003 | Ambiente-alvo Colab/local | Kernel 3.11–3.13; computação em Python 3.11/3.12, CPU, venv isolado e nenhuma API paga obrigatória |
 | NFR-004 | Didática progressiva | Tabela booleana → função clássica → circuito → medição → inferência |
 | NFR-005 | Desempenho interpretável | Warm-up fora da medição; mediana e IQR; sem linguagem de vantagem quântica |
 | NFR-006 | Rastreabilidade | Cada requisito crítico possui ao menos um teste automatizado |
@@ -103,6 +103,7 @@ JSON com `schema_version`, data UTC, Python, plataforma, versões, commit, árvo
 2. TFQ 0.7.6 declara `tf-keras>=2.18,<2.19`; usa-se TensorFlow 2.18.1 e TF-Keras 2.18.0.
 3. `TF_USE_LEGACY_KERAS=1` deve ser definido antes do primeiro import TensorFlow/TFQ.
 4. Qiskit usa ordem little-endian em seu vetor linear; o adaptador deve transpor os eixos para `q0,…,qN−1` antes da comparação.
+5. Se o kernel Colab estiver em Python 3.13, a v3.2.1 cria um bootstrap isolado com `uv==0.12.9`, instala CPython 3.12 gerenciado em `/content` e cria o venv científico a partir dele. Não se tenta instalar wheels TFQ incompatíveis no Python 3.13.
 
 ## 8. Gate de evidência
 

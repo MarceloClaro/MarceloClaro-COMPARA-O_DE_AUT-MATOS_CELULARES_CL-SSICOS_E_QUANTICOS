@@ -23,7 +23,7 @@ def build():
         m(r'''![Autômatos celulares: do padrão à prova. Padrão da regra 30 calculado com 81 células e 40 passos.](https://raw.githubusercontent.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/main/assets/eca-cover.png)
 
 # Autômatos celulares · do padrão à prova
-### Laboratório científico-didático · v3.2 · CPU
+### Laboratório científico-didático · v3.2.1 · CPU
 
 **MARCELO CLARO LARANJEIRA** · [@MarceloClaro](https://github.com/MarceloClaro)<br>
 Professor de Geografia e Pedagogo · Crateús, Ceará, Brasil<br>
@@ -64,7 +64,7 @@ O checkout local é reutilizado; no Colab, um clone separado é criado uma vez. 
 REPOSITORY = "https://github.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS.git"
 PROJECT_ROOT = Path.cwd()
 if not (PROJECT_ROOT / "scripts/eca_colab_support.py").is_file():
-    PROJECT_ROOT = Path("/content/eca-qca-lab-v32") if IN_COLAB else Path.cwd() / "eca-qca-lab-v32"
+    PROJECT_ROOT = Path("/content/eca-qca-lab-v321") if IN_COLAB else Path.cwd() / "eca-qca-lab-v321"
     if not PROJECT_ROOT.exists():
         subprocess.run(["git", "clone", "--depth", "1", "--branch", "main", REPOSITORY, str(PROJECT_ROOT)], check=True, timeout=180)
 if not (PROJECT_ROOT / "scripts/eca_colab_support.py").is_file():
@@ -75,9 +75,9 @@ print("Commit:", subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJE
         m('''## 2 · Ambiente isolado, interface leve
 **A instalação não altera o Python do kernel Colab.** As bibliotecas científicas ficam em um ambiente virtual; cada etapa roda em **processo isolado**, usando CPU e um número limitado de threads. TFQ tem um subprocesso próprio.
 
-A matriz validada exige Python **3.11 ou 3.12**; o instalador verifica a disponibilidade antes de instalar. Em outro Python, a execução para com instrução explícita, em vez de tentar uma combinação incompatível. A primeira instalação pode levar vários minutos. Repeti-la reutiliza o ambiente, depois de verificar as versões.''', "env-md"),
+A matriz TFQ exige Python **3.11 ou 3.12**. Se o Colab estiver em **Python 3.13**, o instalador obtém um **Python 3.12 gerenciado** dentro de `/content`, cria o venv científico a partir dele e mantém o kernel atual. O bootstrap `uv` também fica isolado e fixado por versão. A primeira execução baixa o interpretador e as bibliotecas e pode levar vários minutos; as seguintes verificam e reutilizam o ambiente.''', "env-md"),
         c('''from eca_colab_support import ensure_environment, cpu_environment, read_pins, run_json, table_html, report_html
-ENV_DIR = (Path("/content") if IN_COLAB else PROJECT_ROOT) / ".venv-eca-v32"
+ENV_DIR = (Path("/content") if IN_COLAB else PROJECT_ROOT) / ".venv-eca-v321"
 PYTHON = ensure_environment(PROJECT_ROOT, ENV_DIR, allow_install=IN_COLAB or os.environ.get("ECA_ALLOW_INSTALL") == "1", reuse_current=not IN_COLAB)
 print("Python científico:", PYTHON)
 print("Versões verificadas:", json.dumps(read_pins(PROJECT_ROOT / "requirements-eca-colab.txt"), ensure_ascii=False))

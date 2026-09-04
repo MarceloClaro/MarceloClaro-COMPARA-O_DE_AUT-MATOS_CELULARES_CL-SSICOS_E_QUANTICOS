@@ -167,3 +167,6 @@ eca_qca_results_*/
 eca_notebook_validation*.json
 .venv-eca*/
 eca_validation_logs/
+.eca-uv-bootstrap*/
+.eca-uv-cache*/
+.eca-python*/

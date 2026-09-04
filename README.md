@@ -5,7 +5,7 @@
 Um laboratório para **aprender, testar e reproduzir** a relação entre ECA clássico e sua incorporação reversível em circuitos quânticos.
 
 [![Abrir no Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/blob/main/COMPARA%C3%87%C3%83O_DE_AUT%C3%94MATOS_CELULARES_CL%C3%81SSICOS_E_QUANTICOS_Performance%2C_robustez_ao_ru%C3%ADdo_e_aplica%C3%A7%C3%B5es_.ipynb)
-[Protocolo científico](docs/PROTOCOL.md) · [Especificação SDD](docs/SDD.md) · [Validação v3.2](docs/V32_VALIDATION.md) · [Plano do artigo](docs/ARTICLE_PLAN.md)
+[Protocolo científico](docs/PROTOCOL.md) · [Especificação SDD](docs/SDD.md) · [Correção Colab/Python 3.13](docs/COLAB_PYTHON313_FIX.md) · [Validação v3.2](docs/V32_VALIDATION.md) · [Plano do artigo](docs/ARTICLE_PLAN.md)
 
 **CPU · sem API paga obrigatória · três SDKs · dados auditáveis**
 
@@ -29,7 +29,7 @@ A proposta didática conecta leitura de padrões, raciocínio computacional e in
 3. Deixe o perfil **smoke** e clique em **Executar tudo**.
 4. Leia o painel final e baixe o ZIP no painel **Arquivos**, pelo caminho mostrado. O download automático é opcional.
 
-A primeira instalação cria um ambiente virtual separado. **Não troca NumPy ou TensorFlow do kernel Colab.** As etapas científicas rodam em subprocessos CPU com threads limitadas. Python 3.11/3.12 é verificado antes da instalação.
+A primeira instalação cria um ambiente virtual separado. **Não troca NumPy ou TensorFlow do kernel Colab.** As etapas científicas rodam em subprocessos CPU com threads limitadas. Se o kernel estiver em Python 3.13, a v3.2.1 instala Python 3.12 dentro de `/content` com um bootstrap `uv==0.12.9` isolado e usa esse interpretador somente no laboratório.
 
 Cada **Executar tudo** cria uma pasta exclusiva; execuções anteriores não são sobrescritas. A célula de coleta reutiliza um resultado completo da mesma execução, depois de verificar sua integridade. Reproduzir as mesmas sementes não aumenta a amostra.
 
@@ -148,7 +148,7 @@ Rigor e transparência melhoram a pesquisa, mas não garantem novidade, aceite o
 | Sintoma | Conduta |
 |---|---|
 | HTTP 502 em kernelspecs antes de qualquer saída Python | Reconecte uma sessão CPU; é indisponibilidade de kernel/proxy, não resultado experimental |
-| Python fora de 3.11/3.12 | Use runtime compatível ou instalação local; não force wheels incompatíveis |
+| Kernel Colab em Python 3.13 | A v3.2.1 baixa Python 3.12 gerenciado em `/content`; reabra o notebook atualizado para não reutilizar o checkout v32 |
 | Instalação interrompida | Reexecute a etapa de ambiente; não avance com matriz divergente |
 | Falha em teste/gate | Preserve a saída do erro; não reduza tolerâncias para obter aprovação |
 | Pasta com resultados parciais | Use Executar tudo para criar outra pasta; não apague nem substitua dados silenciosamente |

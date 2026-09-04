@@ -86,6 +86,8 @@ HTTP 502 em `prod.colab.dev/api/kernelspecs`, antes do kernel, é falha de infra
 
 A v3.2 usa um venv científico separado do kernel da interface, com processos CPU. Cada execução recebe uma pasta própria; resultados completos não são sobrescritos. A validação em namespace Python é explicitamente distinta da execução em kernel Jupyter/Colab. Uma falha de permissão ao iniciar Jupyter não pode ser registrada como teste de notebook aprovado.
 
+Na correção v3.2.1, um kernel Colab Python 3.13 aciona a instalação isolada de CPython 3.12 com `uv==0.12.9`. Essa é uma correção de compatibilidade ambiental: não altera hipóteses, sementes, circuitos, estimandos ou critérios. A versão exata do Python científico permanece registrada no manifesto.
+
 ## 9. Comparações permitidas
 
 - Referência clássica × cada implementação quântica em base.

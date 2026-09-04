@@ -104,6 +104,18 @@ JSON com `schema_version`, data UTC, Python, plataforma, versões, commit, árvo
 3. `TF_USE_LEGACY_KERAS=1` deve ser definido antes do primeiro import TensorFlow/TFQ.
 4. Qiskit usa ordem little-endian em seu vetor linear; o adaptador deve transpor os eixos para `q0,…,qN−1` antes da comparação.
 5. Se o kernel Colab estiver em Python 3.13, a v3.2.1 cria um bootstrap isolado com `uv==0.12.9`, instala CPython 3.12 gerenciado em `/content` e cria o venv científico a partir dele. Não se tenta instalar wheels TFQ incompatíveis no Python 3.13.
+6. A v3.2.2 substitui o bootstrap v3.2.1 por um binário uv extraído de um wheel oficial com SHA-256 previamente fixado, sem chamar pip, venv ou ensurepip do kernel. O próprio uv cria o ambiente científico; pip fica somente nesse ambiente. Downloads incompletos não são publicados como instalações válidas. A reentrada verifica o hash do executável armazenado. Diretórios não reconhecidos não são sobrescritos.
+7. A célula de fonte carrega `eca_colab_support` explicitamente do checkout v322, substituindo apenas a referência Python ao módulo anterior. Não altera os checkouts antigos nem resultados. Erros de subprocesso incluem a saída de diagnóstico.
+
+### Contratos de compatibilidade v3.2.2
+
+| Requisito | Evidência automatizada |
+|---|---|
+| Não depender de pip/venv/ensurepip do kernel | `test_bootstrap_works_without_host_venv_or_pip` e `test_scientific_environment_created_by_uv_not_host_venv` |
+| Verificar antes de executar | `test_bootstrap_bad_sha256_never_executes` e `test_modified_cached_binary_is_rejected` |
+| Preservar dados e não instalar sem autorização | testes de diretório alheio, ambiente alheio e `allow_install=False` em `test_eca_bootstrap.py` |
+| Reentrada e módulo correto | `test_bootstrap_reentry_does_not_download`, `test_old_partial_bootstrap_is_not_reused` e `test_notebook_loads_support_from_selected_checkout` |
+| Diagnóstico verificável | `test_command_failure_shows_original_stderr` |
 
 ## 8. Gate de evidência
 

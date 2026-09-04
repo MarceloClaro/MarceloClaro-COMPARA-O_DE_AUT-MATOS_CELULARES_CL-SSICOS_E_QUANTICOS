@@ -23,7 +23,7 @@ def build():
         m(r'''![Autômatos celulares: do padrão à prova. Padrão da regra 30 calculado com 81 células e 40 passos.](https://raw.githubusercontent.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS/main/assets/eca-cover.png)
 
 # Autômatos celulares · do padrão à prova
-### Laboratório científico-didático · v3.2.1 · CPU
+### Laboratório científico-didático · v3.2.2 · CPU
 
 **MARCELO CLARO LARANJEIRA** · [@MarceloClaro](https://github.com/MarceloClaro)<br>
 Professor de Geografia e Pedagogo · Crateús, Ceará, Brasil<br>
@@ -43,7 +43,7 @@ Você vai **ler padrões → construir o modelo → testar equivalência → int
 
 **Sem serviço pago obrigatório:** não usa GPU, API paga ou GitHub Actions. Colab gratuito tem limites variáveis de recursos e duração; não há garantia de disponibilidade. Esta configuração não altera cobranças anteriores de nenhuma conta.
 
-**Erro 502 antes da primeira saída Python?** O kernel/servidor não ficou acessível. Desconecte e exclua o ambiente de execução; reconecte uma sessão CPU. Nenhuma célula Python consegue corrigir um proxy indisponível. Não compartilhe URLs com tokens de autenticação.''', "before"),
+**Erro 502 antes da primeira saída Python?** O kernel/servidor não ficou acessível. Salve seus arquivos antes de desconectar e excluir o ambiente de execução; reconecte uma sessão CPU. Nenhuma célula Python consegue corrigir um proxy indisponível. Não compartilhe URLs com tokens de autenticação.''', "before"),
         c('''import os, sys, json, uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -61,23 +61,28 @@ print(f"Perfil: {PROFILE} | CPU | execução {RUN_NUMBER}\\nPasta exclusiva: {OU
         m('''## 1 · Fonte rastreável
 O checkout local é reutilizado; no Colab, um clone separado é criado uma vez. Não se sobrescrevem alterações locais e não se atualiza o código silenciosamente entre execuções. O manifesto registrará o commit e a árvore Git efetivamente utilizados.''', "source-md"),
         c('''import subprocess
+import importlib.util
 REPOSITORY = "https://github.com/MarceloClaro/MarceloClaro-COMPARA-O_DE_AUT-MATOS_CELULARES_CL-SSICOS_E_QUANTICOS.git"
-PROJECT_ROOT = Path.cwd()
-if not (PROJECT_ROOT / "scripts/eca_colab_support.py").is_file():
-    PROJECT_ROOT = Path("/content/eca-qca-lab-v321") if IN_COLAB else Path.cwd() / "eca-qca-lab-v321"
-    if not PROJECT_ROOT.exists():
-        subprocess.run(["git", "clone", "--depth", "1", "--branch", "main", REPOSITORY, str(PROJECT_ROOT)], check=True, timeout=180)
+PROJECT_ROOT = Path("/content/eca-qca-lab-v322") if IN_COLAB else Path.cwd()
+if not IN_COLAB and not (PROJECT_ROOT / "scripts/eca_colab_support.py").is_file():
+    PROJECT_ROOT = Path.cwd() / "eca-qca-lab-v322"
+if not PROJECT_ROOT.exists():
+    subprocess.run(["git", "clone", "--depth", "1", "--branch", "main", REPOSITORY, str(PROJECT_ROOT)], check=True, timeout=180)
 if not (PROJECT_ROOT / "scripts/eca_colab_support.py").is_file():
     raise FileNotFoundError("Checkout incompleto. Abra a versão atual do notebook ou use uma nova sessão.")
-sys.path.insert(0, str(PROJECT_ROOT / "scripts")) if str(PROJECT_ROOT / "scripts") not in sys.path else None
+# Carrega exatamente o arquivo deste checkout, mesmo se a v3.2.1 ficou em memória.
+SUPPORT_SPEC = importlib.util.spec_from_file_location("eca_colab_support", PROJECT_ROOT / "scripts/eca_colab_support.py")
+SUPPORT_MODULE = importlib.util.module_from_spec(SUPPORT_SPEC)
+SUPPORT_SPEC.loader.exec_module(SUPPORT_MODULE)
+sys.modules["eca_colab_support"] = SUPPORT_MODULE
 print("Código:", PROJECT_ROOT)
 print("Commit:", subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJECT_ROOT, text=True).strip())''', "source"),
         m('''## 2 · Ambiente isolado, interface leve
 **A instalação não altera o Python do kernel Colab.** As bibliotecas científicas ficam em um ambiente virtual; cada etapa roda em **processo isolado**, usando CPU e um número limitado de threads. TFQ tem um subprocesso próprio.
 
-A matriz TFQ exige Python **3.11 ou 3.12**. Se o Colab estiver em **Python 3.13**, o instalador obtém um **Python 3.12 gerenciado** dentro de `/content`, cria o venv científico a partir dele e mantém o kernel atual. O bootstrap `uv` também fica isolado e fixado por versão. A primeira execução baixa o interpretador e as bibliotecas e pode levar vários minutos; as seguintes verificam e reutilizam o ambiente.''', "env-md"),
+A matriz TFQ exige Python **3.11 ou 3.12**. Se o Colab estiver em **Python 3.13**, o instalador obtém um **Python 3.12 gerenciado** dentro de `/content` e mantém o kernel atual. Na v3.2.2, o binário `uv` é obtido de um wheel oficial com **SHA-256 fixado**, sem depender de pip, venv ou ensurepip do kernel. O próprio uv cria o ambiente científico. A primeira execução baixa o interpretador e as bibliotecas e pode levar vários minutos; as seguintes verificam e reutilizam o ambiente. Se ocorrer falha externa, a mensagem inclui a saída de diagnóstico; não avance com ambiente incompleto.''', "env-md"),
         c('''from eca_colab_support import ensure_environment, cpu_environment, read_pins, run_json, table_html, report_html
-ENV_DIR = (Path("/content") if IN_COLAB else PROJECT_ROOT) / ".venv-eca-v321"
+ENV_DIR = (Path("/content") if IN_COLAB else PROJECT_ROOT) / ".venv-eca-v322"
 PYTHON = ensure_environment(PROJECT_ROOT, ENV_DIR, allow_install=IN_COLAB or os.environ.get("ECA_ALLOW_INSTALL") == "1", reuse_current=not IN_COLAB)
 print("Python científico:", PYTHON)
 print("Versões verificadas:", json.dumps(read_pins(PROJECT_ROOT / "requirements-eca-colab.txt"), ensure_ascii=False))

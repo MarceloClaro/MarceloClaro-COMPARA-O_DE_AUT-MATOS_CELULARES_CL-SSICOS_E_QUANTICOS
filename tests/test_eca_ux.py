@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -79,27 +80,30 @@ def test_managed_python_bootstrap_is_pinned_and_isolated():
     text = (ROOT / "scripts/eca_colab_support.py").read_text()
     assert 'UV_VERSION = "0.12.9"' in text
     assert 'PYTHON_REQUEST = "3.12"' in text
-    assert '"-m", "venv", str(bootstrap)' in text
+    assert '"-m", "venv"' not in text
+    assert "wheel_digest" in text and "sha256(wheel_bytes)" in text
     assert '"--managed-python"' in text
     assert "curl" not in text and "sudo" not in text
 
 
 def test_notebook_uses_new_checkout_for_hotfix():
     text = (ROOT / "scripts/build_eca_colab.py").read_text()
-    assert "/content/eca-qca-lab-v321" in text
+    assert "/content/eca-qca-lab-v322" in text
     assert "Python 3.13" in text and "Python 3.12 gerenciado" in text
 
 
 def test_managed_python_install_command_and_result(monkeypatch, tmp_path):
     module = support()
-    managed_python = tmp_path / ".eca-python-v321" / "cpython-3.12" / "bin" / "python3.12"
+    managed_python = tmp_path / ".eca-python-v322" / "cpython-3.12" / "bin" / "python3.12"
     managed_python.parent.mkdir(parents=True)
     managed_python.write_bytes(b"test executable")
     calls = []
     monkeypatch.setattr(module, "_bootstrap_uv", lambda parent: "/isolated/uv")
-    monkeypatch.setattr(module.subprocess, "run", lambda command, **kwargs: calls.append((command, kwargs)))
-    answers = iter((str(managed_python) + "\n", "[3, 12]\n"))
-    monkeypatch.setattr(module.subprocess, "check_output", lambda *args, **kwargs: next(answers))
+    answers = iter(("", str(managed_python) + "\n", "[3, 12]\n"))
+    def run(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(command, 0, stdout=next(answers), stderr="")
+    monkeypatch.setattr(module.subprocess, "run", run)
     assert module.install_managed_python(tmp_path) == str(managed_python)
     assert calls[0][0] == ["/isolated/uv", "python", "install", "3.12", "--no-bin", "--no-progress", "--no-config"]
-    assert calls[0][1]["env"]["UV_PYTHON_INSTALL_DIR"] == str(tmp_path / ".eca-python-v321")
+    assert calls[0][1]["env"]["UV_PYTHON_INSTALL_DIR"] == str(tmp_path / ".eca-python-v322")

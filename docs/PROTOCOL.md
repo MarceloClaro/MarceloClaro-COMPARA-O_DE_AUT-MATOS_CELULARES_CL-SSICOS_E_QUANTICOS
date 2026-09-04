@@ -88,6 +88,8 @@ A v3.2 usa um venv científico separado do kernel da interface, com processos CP
 
 Na correção v3.2.1, um kernel Colab Python 3.13 aciona a instalação isolada de CPython 3.12 com `uv==0.12.9`. Essa é uma correção de compatibilidade ambiental: não altera hipóteses, sementes, circuitos, estimandos ou critérios. A versão exata do Python científico permanece registrada no manifesto.
 
+A v3.2.2 corrige uma dependência circular dessa preparação: o bootstrap não usa mais `python -m venv` do kernel. Obtém somente o binário uv de um wheel oficial com SHA-256 fixado; uv cria o venv científico e instala `pip==26.2.1` nele. Falhas exibem stdout/stderr e bloqueiam a coleta. Essa alteração tampouco modifica o desenho científico; validação unitária, instalação local real e execução Colab são evidências distintas, descritas em [COLAB_BOOTSTRAP_V322.md](COLAB_BOOTSTRAP_V322.md).
+
 ## 9. Comparações permitidas
 
 - Referência clássica × cada implementação quântica em base.

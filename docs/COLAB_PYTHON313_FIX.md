@@ -1,5 +1,7 @@
 # Correção Colab/Python 3.13 — v3.2.1
 
+> Registro histórico: a v3.2.1 falhou em uma sessão Colab ao criar seu venv auxiliar. Use a [correção v3.2.2](COLAB_BOOTSTRAP_V322.md), que remove essa dependência. As evidências abaixo pertencem à versão anterior e não equivalem à validação da atualização.
+
 ## Diagnóstico
 
 O erro `Esta matriz TFQ exige Python 3.11/3.12` é esperado quando o kernel fornecido pelo Colab está em Python 3.13. O TensorFlow Quantum suporta Python 3.10–3.12 e depende diretamente de Cirq; tentar forçar seus wheels no 3.13 produziria um ambiente inconsistente.

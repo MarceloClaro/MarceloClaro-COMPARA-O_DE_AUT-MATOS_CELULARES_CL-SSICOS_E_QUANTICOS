@@ -1,0 +1,35 @@
+{
+  "version": "3.2.2",
+  "date_utc": "2026-09-04",
+  "purpose": "Regressão de compatibilidade do instalador, não confirmação científica independente",
+  "colab_live_verified": false,
+  "host_python": "3.13.14",
+  "scientific_python": "3.12.14",
+  "real_download_and_install": true,
+  "host_pip_venv_ensurepip_forbidden": true,
+  "reentry_without_reinstall": true,
+  "full_suite_passed": 496,
+  "eca_suite_passed": 481,
+  "bootstrap_ux_contracts_passed": 35,
+  "profile": "smoke",
+  "namespace_passes": 2,
+  "code_cells_per_pass": 11,
+  "scientific_design_changed": false,
+  "worktree_dirty_during_validation": true,
+  "validated_source_sha256": {
+    "scripts/eca_colab_support.py": "ee851211e0eb68e40239e7e8f65e570db7d9bd2cde796cb3edc3628545338329",
+    "scripts/build_eca_colab.py": "8d6f75a1919a5acbb044271a3de6b0e0c28b9a3a9b786ee623e7050202ee9977",
+    "scripts/validate_eca_bootstrap.py": "337cd99fb1f6397d34830dbca6b383cdfc6f460c71f0078d20db911377651a1d",
+    "requirements-eca-colab.txt": "38c1b4978a4361f5dcd4ce17d07c9f762775f66246e847875fccd81946a1e464"
+  },
+  "evidence_files": [
+    "installation.json",
+    "uv_receipt.json",
+    "environment_freeze.txt",
+    "pytest_all.txt",
+    "pytest_eca.txt",
+    "smoke_report.json",
+    "notebook_validation.json"
+  ],
+  "limitation": "Hospedeiro Linux local com PATH restrito e ferramentas de instalação bloqueadas no processo; não é a distribuição /usr/bin/python3 do Colab nem seu frontend"
+}

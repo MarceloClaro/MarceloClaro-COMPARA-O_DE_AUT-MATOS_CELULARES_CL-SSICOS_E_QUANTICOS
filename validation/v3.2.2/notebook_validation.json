@@ -1,0 +1,167 @@
+{
+  "schema_version": "3.2",
+  "executor": "namespace",
+  "status": "passed",
+  "error": null,
+  "profile": "smoke",
+  "checks": {
+    "21_cells": true,
+    "11_code": true,
+    "author": true,
+    "orcid": true,
+    "no_guard": true,
+    "tfq_semantics": true,
+    "no_sdk_import_in_ui": true
+  },
+  "runs": [
+    {
+      "seconds": 24.624323574999835,
+      "pytest_passed": 481,
+      "cells": [
+        {
+          "cell": 3,
+          "id": "config",
+          "seconds": 0.0003525699999045173
+        },
+        {
+          "cell": 5,
+          "id": "source",
+          "seconds": 0.00411280599996644
+        },
+        {
+          "cell": 7,
+          "id": "install",
+          "seconds": 0.06692022799984443
+        },
+        {
+          "cell": 8,
+          "id": "imports",
+          "seconds": 0.3617507710000609
+        },
+        {
+          "cell": 10,
+          "id": "tdd",
+          "seconds": 5.796609783000122
+        },
+        {
+          "cell": 12,
+          "id": "classic",
+          "seconds": 0.7154569460001312
+        },
+        {
+          "cell": 14,
+          "id": "oracle",
+          "seconds": 3.5044634060000135
+        },
+        {
+          "cell": 16,
+          "id": "coherent",
+          "seconds": 3.797816206999869
+        },
+        {
+          "cell": 18,
+          "id": "run",
+          "seconds": 10.1290693320002
+        },
+        {
+          "cell": 19,
+          "id": "artifacts",
+          "seconds": 0.24436314800004766
+        },
+        {
+          "cell": 21,
+          "id": "final",
+          "seconds": 0.0005136610000135988
+        }
+      ],
+      "run_state": {
+        "status": "completed",
+        "profile": "smoke",
+        "run_number": 1,
+        "run_id": "20260904T091120Z-f0daadc3",
+        "output_dir": "/workspace/scratch/7795da2482a7/repo_eca/eca_validation_logs/20260904T091104Z-27017ab9/notebook-runs/smoke/20260904T091120Z-f0daadc3",
+        "technical_gate_passed": true,
+        "bundle_sha256": "f825707766f3356dded636e2e0547da7193cdc12945cf69d90a8071f40f51207"
+      },
+      "process_pid": 47,
+      "peak_process_rss_kib": 48544,
+      "scientific_sdks_in_kernel": []
+    },
+    {
+      "seconds": 23.64579154000012,
+      "pytest_passed": 481,
+      "cells": [
+        {
+          "cell": 3,
+          "id": "config",
+          "seconds": 0.0006580590002158715
+        },
+        {
+          "cell": 5,
+          "id": "source",
+          "seconds": 0.004147277000129179
+        },
+        {
+          "cell": 7,
+          "id": "install",
+          "seconds": 0.062233889000026466
+        },
+        {
+          "cell": 8,
+          "id": "imports",
+          "seconds": 0.34322648400006983
+        },
+        {
+          "cell": 10,
+          "id": "tdd",
+          "seconds": 5.626961733999906
+        },
+        {
+          "cell": 12,
+          "id": "classic",
+          "seconds": 0.6428463390000161
+        },
+        {
+          "cell": 14,
+          "id": "oracle",
+          "seconds": 3.1982650840000133
+        },
+        {
+          "cell": 16,
+          "id": "coherent",
+          "seconds": 3.6776437700000315
+        },
+        {
+          "cell": 18,
+          "id": "run",
+          "seconds": 9.985564702999909
+        },
+        {
+          "cell": 19,
+          "id": "artifacts",
+          "seconds": 0.10295010699996965
+        },
+        {
+          "cell": 21,
+          "id": "final",
+          "seconds": 0.0001504740000655147
+        }
+      ],
+      "run_state": {
+        "status": "completed",
+        "profile": "smoke",
+        "run_number": 2,
+        "run_id": "20260904T091145Z-a3ccf863",
+        "output_dir": "/workspace/scratch/7795da2482a7/repo_eca/eca_validation_logs/20260904T091104Z-27017ab9/notebook-runs/smoke/20260904T091145Z-a3ccf863",
+        "technical_gate_passed": true,
+        "bundle_sha256": "aa58e4e2113473352fb0982f1e2717095c0905bc792df7b48e471054925812bd"
+      },
+      "process_pid": 47,
+      "peak_process_rss_kib": 48544,
+      "scientific_sdks_in_kernel": []
+    }
+  ],
+  "same_kernel_reentry": false,
+  "same_namespace_reentry": true,
+  "limitation": "não valida kernel Jupyter nem frontend Colab"
+}
